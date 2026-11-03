@@ -374,7 +374,7 @@ function mergeVocab(localItems, remoteItems){
   const rmap = {}; remoteItems.forEach(it => rmap[key(it)] = it);
   const seen = {}; const out = [];
   localItems.forEach(it => { const k = key(it); seen[k] = 1; const r = rmap[k];
-    if (r && (score(r)[0] > score(it)[0] || (score(r)[0] === score(it)[0] && score(r)[1] > score(it)[1]))) out.push(r); else out.push(it); });
+    if (r && (score(r)[0] > score(it)[0] || (score(r)[0] === score(it)[0] && score(r)[1] >= score(it)[1]))) out.push(r); else out.push(it); });
   remoteItems.forEach(it => { if (!seen[key(it)]) out.push(it); });
   return out;
 }

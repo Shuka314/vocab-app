@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>単語帳（英語・中国語）</title>
+<style>
+:root{
+  --bg:#1e1e1e; --card:#2d2d2d; --border:#404040; --text:#e0e0e0; --muted:#a0a0a0;
+  --accent:#4ec9b0; --success:#b5cea8; --warning:#f14c4c; --normal:#569cd6; --input:#3c3c3c;
+}
+body.rpg{--bg:#0f0f1a;--card:#1a1a2e;--border:#3b3b6d;--text:#f0f0f5;--muted:#9494b8;--accent:#ffd700;--success:#00ffcc;--warning:#ff4757;--normal:#3498db;--input:#242438}
+body.souls{--bg:#12100e;--card:#1c1917;--border:#4a413b;--text:#e6dbc9;--muted:#8c8275;--accent:#e65100;--success:#48c9b0;--warning:#a93226;--normal:#d35400;--input:#282420}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,"Hiragino Kaku Gothic ProN","Noto Sans JP",sans-serif;min-height:100vh;display:flex;flex-direction:column}
+header{padding:10px 14px 4px;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+h1{font-size:17px;margin:0}
+select,input,textarea{background:var(--input);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:9px;font-size:15px}
+.tabs{display:flex;gap:6px;padding:8px 14px 0}
+.tabs button{flex:1;padding:11px 4px;border-radius:10px;border:1px solid var(--border);background:var(--card);color:var(--muted);font-size:15px;font-weight:700}
+.tabs button.on{color:var(--accent);border-color:var(--accent)}
+main{flex:1;display:flex;flex-direction:column;padding:12px 14px;gap:10px;max-width:720px;width:100%;margin:0 auto}
+.card{background:var(--card);border:1px solid var(--border);border-radius:16px;min-height:300px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:26px 20px;text-align:center;cursor:pointer;user-select:none;position:relative}
+.badge{position:absolute;top:12px;left:16px;font-size:12px;font-weight:700;color:var(--accent)}
+.timer{position:absolute;top:12px;right:16px;font-size:14px;font-weight:700;color:var(--warning)}
+.word{font-size:34px;font-weight:800;line-height:1.3;word-break:break-word}
+.reading{font-size:19px;color:var(--accent);margin-top:12px;white-space:pre-line}
+.meaning{font-size:21px;color:var(--accent);margin-top:8px;white-space:pre-line;line-height:1.5}
+.example{font-size:16px;color:var(--muted);margin-top:16px;white-space:pre-line;line-height:1.6}
+.hint{font-size:14px;color:var(--muted)}
+.grades{display:flex;gap:8px}
+.grades button{flex:1;padding:16px 4px;border-radius:12px;border:1px solid var(--border);background:var(--card);font-size:16px;font-weight:800}
+.g-hard{color:var(--warning)} .g-normal{color:var(--normal)} .g-easy{color:var(--success)}
+.grades button:disabled{opacity:.35}
+.stats{font-size:13px;color:var(--accent);font-weight:700;padding:0 2px}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+.row button{padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:14px;font-weight:700}
+label.chk{display:flex;align-items:center;gap:6px;font-size:14px;color:var(--accent);font-weight:700}
+.view{display:none;flex-direction:column;gap:10px}
+.view.on{display:flex}
+.list{display:flex;flex-direction:column;gap:6px;overflow-y:auto}
+.item{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px 12px}
+.item b{font-size:16px}
+.item .sub{color:var(--muted);font-size:13px;margin-top:2px;line-height:1.5}
+.item .meta{color:var(--accent);font-size:12px;margin-top:2px}
+form.add{display:flex;flex-direction:column;gap:8px;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px}
+form.add button{background:var(--input);color:var(--accent);border:1px solid var(--border);border-radius:10px;padding:12px;font-size:15px;font-weight:800}
+.note{font-size:12px;color:var(--muted);line-height:1.6}
+.danger{color:var(--warning)!important}
+</style>
+</head>
+<body>
+<header>
+  <h1>📖 単語帳</h1>
+  <div class="row" style="align-items:center">
+    <label class="chk"><input type="checkbox" id="timerChk" style="width:20px;height:20px"> ⏳30秒</label>
+    <select id="themeSel">
+      <option value="">🌙 モダンダーク</option>
+      <option value="rpg">🌟 レトロRPG</option>
+      <option value="souls">🏰 ダークソウル</option>
+    </select>
+  </div>
+</header>
+
+<div class="tabs">
+  <button data-mode="en" class="on">英語</button>
+  <button data-mode="cn">中国語</button>
+  <button data-mode="mix">🔄 混合</button>
+  <button data-mode="list">⚙ 一覧</button>
+</div>
+
+<main>
+  <section id="studyView" class="view on">
+    <div class="card" id="card">
+      <div class="badge" id="badge"></div>
+      <div class="timer" id="timer"></div>
+      <div class="word" id="word">---</div>
+      <div class="reading" id="reading"></div>
+      <div class="meaning" id="meaning"></div>
+      <div class="example" id="example"></div>
+      <div class="hint" id="hint">タップで意味を表示</div>
+    </div>
+    <div class="grades">
+      <button class="g-hard" id="btnHard">難しい</button>
+      <button class="g-normal" id="btnNormal">普通</button>
+      <button class="g-easy" id="btnEasy">簡単</button>
+    </div>
+    <div class="stats" id="stats"></div>
+  </section>
+
+  <section id="listView" class="view">
+    <input id="search" type="search" placeholder="🔍 検索（単語・意味・例文）">
+    <div class="row">
+      <button id="deckEn">英語の単語</button>
+      <button id="deckCn">中国語の単語</button>
+    </div>
+    <div class="list" id="list"></div>
+    <form class="add" id="addForm">
+      <b id="addTitle">＋ 単語を追加</b>
+      <input id="fWord" placeholder="単語" required>
+      <input id="fReading" placeholder="ピンイン（中国語のみ）">
+      <input id="fMeaning" placeholder="意味" required>
+      <input id="fExample" placeholder="例文">
+      <input id="fExReading" placeholder="例文ピンイン（中国語のみ）">
+      <button type="submit">追加する</button>
+    </form>
+    <div class="row">
+      <button id="expCsv">📤 CSV出力</button>
+      <button id="expJson">📤 JSON出力（全データ）</button>
+      <button id="impJsonBtn">📥 JSON取込</button>
+      <input type="file" id="impJson" accept=".json,application/json" style="display:none">
+      <button id="resetBtn">☁ GitHubから再取得</button>
+    </div>
+
+    <form class="add" id="ghForm">
+      <b>☁ GitHub同期</b>
+      <input id="ghOwner" placeholder="GitHubユーザー名（owner）">
+      <input id="ghRepo" placeholder="リポジトリ名（Private）">
+      <input id="ghToken" type="password" placeholder="トークン（Contents: Read and write）">
+      <input id="ghBranch" placeholder="ブランチ（空欄なら main）">
+      <div class="row">
+        <button type="button" id="ghSave">設定を保存</button>
+        <button type="button" id="ghSyncNow">今すぐ同期</button>
+      </div>
+      <div class="note" id="ghStatus">未設定：ローカル保存のみで動作中</div>
+    </form>
+    <p class="note">進捗（復習間隔・次回復習日）はこのブラウザ内に自動保存されます。PC版とは自動同期されないので、データを移したいときはJSON出力／取込を使ってください。一覧の単語をタップすると編集、長押しで削除できます。</p>
+  </section>
+</main>
+
+<script>
+const INITIAL = { en: [], cn: [] };
+const LS_KEY = 'vocabAppDataV1';
+let data;
+try { data = JSON.parse(localStorage.getItem(LS_KEY)) || null; } catch(e){ data = null; }
+if (!data || !data.en || !data.cn) { data = JSON.parse(JSON.stringify(INITIAL)); save(); }
+function save(){ try { localStorage.setItem(LS_KEY, JSON.stringify(data)); } catch(e){} }
+function todayStr(d){ d = d || new Date(); const p = n => String(n).padStart(2,'0'); return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate()); }
+function addDays(n){ const d = new Date(); d.setDate(d.getDate()+n); return todayStr(d); }
+
+let mode = 'en';           // en | cn | mix | list
+let listDeck = 'en';
+let current = null;        // {deck, item}
+let shown = false;
+let timerId = null, timeLeft = 30;
+
+const $ = id => document.getElementById(id);
+const decks = () => mode === 'mix' ? ['en','cn'] : [mode];
+function dueItems(){
+  const t = todayStr(); let out = [];
+  decks().forEach(dk => data[dk].forEach(it => { if ((it.next_review || t) <= t) out.push({deck: dk, item: it}); }));
+  return out;
+}
+function statsText(){
+  const t = todayStr();
+  let due = 0, total = 0;
+  decks().forEach(dk => { total += data[dk].length; due += data[dk].filter(it => (it.next_review || t) <= t).length; });
+  return '⚔ 本日の要復習: ' + due + '件 ／ 総単語数: ' + total + '件';
+}
+function stopTimer(){ if (timerId){ clearInterval(timerId); timerId = null; } $('timer').textContent=''; }
+function startTimer(){
+  stopTimer(); timeLeft = 30; $('timer').textContent = '⏳ 00:30';
+  timerId = setInterval(() => {
+    timeLeft--;
+    if (timeLeft > 0){ $('timer').textContent = '⏳ 00:' + String(timeLeft).padStart(2,'0'); }
+    else { stopTimer(); $('timer').textContent = '⏳ タイムアップ！'; grade('hard'); }
+  }, 1000);
+}
+function nextCard(){
+  stopTimer(); shown = false;
+  const due = dueItems();
+  const totalAll = data.en.length + data.cn.length;
+  if (!due.length){
+    current = null;
+    if (totalAll === 0){
+      $('badge').textContent = ''; $('word').textContent = '単語がありません';
+      $('reading').textContent = ''; $('meaning').textContent = ''; $('example').textContent = '';
+      $('hint').textContent = ghReady() ? '☁ 同期中…少し待ってね' : '「⚙ 一覧」タブで GitHub同期を設定してね';
+      setGrades(false); $('stats').textContent = statsText(); stopTimer(); return;
+    }
+    $('badge').textContent = ''; $('word').textContent = '🎉 TODAY CLEAR!';
+    $('reading').textContent = ''; $('meaning').textContent = ''; $('example').textContent = '';
+    $('hint').textContent = '今日の学習は終了です！明日また復習しましょう。';
+    setGrades(false);
+  } else {
+    let pool = due;
+    if (current && due.length > 1) pool = due.filter(x => x.item !== current.item);
+    current = pool[Math.floor(Math.random() * pool.length)];
+    const it = current.item;
+    $('badge').textContent = mode === 'mix' ? ('📂 [' + (current.deck === 'en' ? '英語' : '中国語') + ']') : '';
+    $('word').textContent = it.word;
+    $('reading').textContent = ''; $('meaning').textContent = ''; $('example').textContent = '';
+    $('hint').textContent = 'タップで意味を表示';
+    setGrades(true);
+    if ($('timerChk').checked) startTimer();
+  }
+  $('stats').textContent = statsText();
+}
+function setGrades(on){ ['btnHard','btnNormal','btnEasy'].forEach(id => $(id).disabled = !on); }
+function toggle(){
+  if (!current) return;
+  shown = !shown; const it = current.item;
+  if (shown){
+    $('reading').textContent = (current.deck === 'cn' && it.reading) ? it.reading : '';
+    $('meaning').textContent = it.meaning || '';
+    let ex = '';
+    if (it.example){ ex = 'Ex) ' + it.example; if (current.deck === 'cn' && it.example_reading) ex += '\n' + it.example_reading; }
+    $('example').textContent = ex;
+    $('hint').textContent = '';
+  } else {
+    $('reading').textContent = ''; $('meaning').textContent = ''; $('example').textContent = '';
+    $('hint').textContent = 'タップで意味を表示';
+  }
+}
+function grade(kind){
+  if (!current) return;
+  stopTimer();
+  const it = current.item; const cur = it.interval || 0;
+  if (kind === 'hard'){ it.interval = 0; it.next_review = todayStr(); }
+  else if (kind === 'normal'){ const n = cur === 0 ? 1 : cur * 2; it.interval = n; it.next_review = addDays(n); }
+  else { const n = cur === 0 ? 3 : cur * 4; it.interval = n; it.next_review = addDays(n); }
+  save(); markDirty(current.deck); nextCard();
+}
+$('card').addEventListener('click', toggle);
+$('btnHard').addEventListener('click', () => grade('hard'));
+$('btnNormal').addEventListener('click', () => grade('normal'));
+$('btnEasy').addEventListener('click', () => grade('easy'));
+$('timerChk').addEventListener('change', e => { if (e.target.checked && current) startTimer(); else stopTimer(); });
+$('themeSel').addEventListener('change', e => { document.body.className = e.target.value; try{ localStorage.setItem('vocabTheme', e.target.value); }catch(err){} });
+try { const th = localStorage.getItem('vocabTheme'); if (th !== null){ document.body.className = th; $('themeSel').value = th; } } catch(e){}
+
+document.querySelectorAll('.tabs button').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('.tabs button').forEach(x => x.classList.remove('on'));
+  b.classList.add('on'); mode = b.dataset.mode;
+  if (mode === 'list'){ $('studyView').classList.remove('on'); $('listView').classList.add('on'); renderList(); }
+  else { $('listView').classList.remove('on'); $('studyView').classList.add('on'); current = null; nextCard(); }
+}));
+
+function renderList(){
+  const q = $('search').value.trim().toLowerCase();
+  const items = data[listDeck];
+  $('addTitle').textContent = '＋ 単語を追加（' + (listDeck === 'en' ? '英語' : '中国語') + '）';
+  $('fReading').style.display = listDeck === 'cn' ? '' : 'none';
+  $('fExReading').style.display = listDeck === 'cn' ? '' : 'none';
+  const frag = document.createDocumentFragment();
+  let shown = 0;
+  items.forEach((it, idx) => {
+    const hay = (it.word + ' ' + (it.reading||'') + ' ' + it.meaning + ' ' + (it.example||'') + ' ' + (it.example_reading||'')).toLowerCase();
+    if (q && !hay.includes(q)) return;
+    shown++;
+    const div = document.createElement('div'); div.className = 'item';
+    const sub = [it.reading, it.meaning].filter(Boolean).join('　');
+    div.innerHTML = '<b></b><div class="sub"></div><div class="meta"></div>';
+    div.querySelector('b').textContent = it.word;
+    div.querySelector('.sub').textContent = sub + (it.example ? '\nEx) ' + it.example : '');
+    div.querySelector('.meta').textContent = '間隔 ' + (it.interval || 0) + '日 ／ 次回 ' + (it.next_review || '');
+    div.addEventListener('click', () => editItem(idx));
+    let pressTimer = null;
+    div.addEventListener('touchstart', () => { pressTimer = setTimeout(() => { if (confirm('「' + it.word + '」を削除しますか？')){ items.splice(idx,1); save(); markDirty(listDeck); renderList(); } }, 700); }, {passive:true});
+    div.addEventListener('touchend', () => clearTimeout(pressTimer));
+    frag.appendChild(div);
+  });
+  const list = $('list'); list.innerHTML = ''; list.appendChild(frag);
+  if (!shown){ list.innerHTML = '<p class="note">該当する単語がありません。</p>'; }
+}
+$('search').addEventListener('input', renderList);
+$('deckEn').addEventListener('click', () => { listDeck = 'en'; renderList(); });
+$('deckCn').addEventListener('click', () => { listDeck = 'cn'; renderList(); });
+
+function editItem(idx){
+  const it = data[listDeck][idx];
+  const w = prompt('単語', it.word); if (w === null) return;
+  let r = it.reading || '';
+  if (listDeck === 'cn'){ r = prompt('ピンイン', r); if (r === null) return; }
+  const m = prompt('意味', it.meaning); if (m === null) return;
+  const ex = prompt('例文', it.example || ''); if (ex === null) return;
+  let exr = it.example_reading || '';
+  if (listDeck === 'cn'){ exr = prompt('例文ピンイン', exr); if (exr === null) return; }
+  if (!w.trim() || !m.trim()){ alert('単語と意味は必須です'); return; }
+  it.word = w.trim(); it.meaning = m.trim(); it.example = ex.trim();
+  if (listDeck === 'cn'){ it.reading = r.trim(); it.example_reading = exr.trim(); }
+  save(); markDirty(listDeck); renderList();
+}
+$('addForm').addEventListener('submit', e => {
+  e.preventDefault();
+  const w = $('fWord').value.trim(), m = $('fMeaning').value.trim();
+  if (!w || !m) return;
+  const arr = data[listDeck]; const t = todayStr();
+  const ex = $('fExample').value.trim();
+  const found = arr.find(x => x.word.toLowerCase() === w.toLowerCase());
+  if (found){ found.meaning = m; found.example = ex; if (listDeck === 'cn'){ found.reading = $('fReading').value.trim(); found.example_reading = $('fExReading').value.trim(); } found.interval = 0; found.next_review = t; }
+  else {
+    const ni = { word: w, meaning: m, example: ex, interval: 0, next_review: t };
+    if (listDeck === 'cn'){ ni.reading = $('fReading').value.trim(); ni.example_reading = $('fExReading').value.trim(); }
+    arr.push(ni);
+  }
+  save(); markDirty(listDeck); e.target.reset(); renderList(); alert('追加しました');
+});
+function download(name, text, type){
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([text], {type: type})); a.download = name; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
+$('expCsv').addEventListener('click', () => {
+  const dk = listDeck; const rows = [];
+  const esc = v => '"' + String(v == null ? '' : v).replace(/"/g,'""') + '"';
+  if (dk === 'cn'){ rows.push(['中国語','ピンイン','意味','例文','例文ピンイン','復習間隔(日)','次回復習日'].join(',')); data.cn.forEach(it => rows.push([it.word, it.reading||'', it.meaning, it.example||'', it.example_reading||'', it.interval||0, it.next_review||''].map(esc).join(','))); }
+  else { rows.push(['英単語','意味','例文','復習間隔(日)','次回復習日'].join(',')); data.en.forEach(it => rows.push([it.word, it.meaning, it.example||'', it.interval||0, it.next_review||''].map(esc).join(','))); }
+  download(dk === 'cn' ? 'chinese_vocab.csv' : 'english_vocab.csv', '﻿' + rows.join('\r\n'), 'text/csv');
+});
+$('expJson').addEventListener('click', () => download('vocab_backup.json', JSON.stringify(data, null, 2), 'application/json'));
+$('impJsonBtn').addEventListener('click', () => $('impJson').click());
+$('impJson').addEventListener('change', e => {
+  const f = e.target.files[0]; if (!f) return;
+  const rd = new FileReader();
+  rd.onload = () => { try { const j = JSON.parse(rd.result); if (Array.isArray(j.en) && Array.isArray(j.cn)){ data = j; save(); markDirty('en'); markDirty('cn'); renderList(); alert('取り込みました（英語' + j.en.length + '件／中国語' + j.cn.length + '件）'); } else if (Array.isArray(j)) { data[listDeck] = j; save(); markDirty(listDeck); renderList(); alert('取り込みました（' + j.length + '件）'); } else alert('形式が違います'); } catch(err){ alert('読み込みに失敗しました'); } };
+  rd.readAsText(f);
+});
+$('resetBtn').addEventListener('click', async () => { await syncPullAll(); renderList(); current = null; nextCard(); alert('GitHubから再取得しました'); });
+
+
+// ===== GitHub sync =====
+const GH_FILES = { en: 'english_vocab.json', cn: 'chinese_vocab.json' };
+let ghCfg = null, ghSha = {}, pushTimers = {};
+try { ghCfg = JSON.parse(localStorage.getItem('vocabGhCfg') || 'null'); } catch(e){}
+try { ghSha = JSON.parse(localStorage.getItem('vocabGhSha') || '{}'); } catch(e){}
+function ghStatus(msg){ const el = $('ghStatus'); if (el) el.textContent = msg; }
+function ghReady(){ return !!(ghCfg && ghCfg.owner && ghCfg.repo && ghCfg.token); }
+function ghSaveSha(){ try { localStorage.setItem('vocabGhSha', JSON.stringify(ghSha)); } catch(e){} }
+function b64enc(str){ return btoa(unescape(encodeURIComponent(str))); }
+function b64dec(b64){ return decodeURIComponent(escape(atob(b64.replace(/\s/g, '')))); }
+async function ghApi(method, file, payload){
+  const url = 'https://api.github.com/repos/' + ghCfg.owner + '/' + ghCfg.repo + '/contents/' + file + (method === 'GET' ? ('?ref=' + (ghCfg.branch || 'main')) : '');
+  const opt = { method: method, headers: { 'Authorization': 'Bearer ' + ghCfg.token, 'Accept': 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28' } };
+  if (payload){ opt.headers['Content-Type'] = 'application/json'; opt.body = JSON.stringify(payload); }
+  const res = await fetch(url, opt);
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error('GitHub API ' + res.status);
+  return res.json();
+}
+async function ghFetchDeck(deck){
+  const j = await ghApi('GET', GH_FILES[deck]);
+  if (!j) return null;
+  ghSha[deck] = j.sha; ghSaveSha();
+  return JSON.parse(b64dec(j.content));
+}
+async function ghPushDeck(deck, items){
+  const payload = { message: 'sync ' + GH_FILES[deck], content: b64enc(JSON.stringify(items, null, 2)), branch: ghCfg.branch || 'main' };
+  if (ghSha[deck]) payload.sha = ghSha[deck];
+  const j = await ghApi('PUT', GH_FILES[deck], payload);
+  if (j && j.content) ghSha[deck] = j.content.sha;
+  ghSaveSha();
+}
+function mergeVocab(localItems, remoteItems){
+  const key = it => String(it.word || '').toLowerCase();
+  const score = it => [it.interval || 0, String(it.next_review || '')];
+  const rmap = {}; remoteItems.forEach(it => rmap[key(it)] = it);
+  const seen = {}; const out = [];
+  localItems.forEach(it => { const k = key(it); seen[k] = 1; const r = rmap[k];
+    if (r && (score(r)[0] > score(it)[0] || (score(r)[0] === score(it)[0] && score(r)[1] > score(it)[1]))) out.push(r); else out.push(it); });
+  remoteItems.forEach(it => { if (!seen[key(it)]) out.push(it); });
+  return out;
+}
+async function pushDeck(deck){
+  if (!ghReady()) return;
+  try { await ghPushDeck(deck, data[deck]); ghStatus('☁ 同期済み ' + new Date().toLocaleTimeString()); }
+  catch(e){
+    try { const remote = await ghFetchDeck(deck); if (remote) data[deck] = mergeVocab(data[deck], remote); save(); await ghPushDeck(deck, data[deck]); ghStatus('☁ 競合をマージして同期しました'); }
+    catch(e2){ ghStatus('⚠ 同期に失敗（オフライン？）次回開いたときに再同期します'); }
+  }
+}
+function markDirty(deck){
+  if (!ghReady()) return;
+  clearTimeout(pushTimers[deck]);
+  pushTimers[deck] = setTimeout(() => pushDeck(deck), 1200);
+}
+async function syncPullAll(){
+  if (!ghReady()){ ghStatus('未設定：ローカル保存のみで動作中'); return; }
+  ghStatus('☁ 同期中…');
+  let ok = true;
+  for (const deck of ['en', 'cn']){
+    try { const remote = await ghFetchDeck(deck); if (remote){ data[deck] = mergeVocab(data[deck], remote); } }
+    catch(e){ ok = false; }
+  }
+  save();
+  ghStatus(ok ? ('☁ 同期完了 ' + new Date().toLocaleTimeString()) : '⚠ 一部同期できませんでした（オフライン？）');
+}
+function fillGhForm(){
+  if (!ghCfg) return;
+  $('ghOwner').value = ghCfg.owner || ''; $('ghRepo').value = ghCfg.repo || '';
+  $('ghToken').value = ghCfg.token || ''; $('ghBranch').value = ghCfg.branch || '';
+}
+$('ghSave').addEventListener('click', async () => {
+  ghCfg = { owner: $('ghOwner').value.trim(), repo: $('ghRepo').value.trim(), token: $('ghToken').value.trim(), branch: $('ghBranch').value.trim() || 'main' };
+  try { localStorage.setItem('vocabGhCfg', JSON.stringify(ghCfg)); } catch(e){}
+  if (ghReady()){ await syncPullAll(); if (mode === 'list') renderList(); current = null; nextCard(); }
+  else ghStatus('入力が不足しています');
+});
+$('ghSyncNow').addEventListener('click', async () => { await syncPullAll(); await pushDeck('en'); await pushDeck('cn'); if (mode === 'list') renderList(); current = null; nextCard(); });
+fillGhForm();
+
+(async () => { await syncPullAll(); nextCard(); })();
+</script>
+</body>
+</html>

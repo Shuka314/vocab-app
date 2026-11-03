@@ -57,6 +57,11 @@ form.add button{background:var(--input);color:var(--accent);border:1px solid var
 .ret .rf{height:100%;background:var(--accent)}
 .ret .rc{width:44px;text-align:right;color:var(--accent);font-weight:700;flex:none}
 .pill{border:1px solid var(--border);background:var(--card);color:var(--accent);border-radius:999px;padding:7px 12px;font-size:13px;font-weight:700;cursor:pointer}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.65);display:none;align-items:flex-start;justify-content:center;z-index:90;padding:20px 12px}
+.modal.on{display:flex}
+.modal-card{position:relative;width:100%;max-width:520px;max-height:88vh;overflow-y:auto}
+.modal-card form.add{box-shadow:0 8px 30px rgba(0,0,0,.5)}
+.modal-x{position:absolute;top:4px;right:10px;background:none;border:none;color:var(--muted);font-size:26px;line-height:1;cursor:pointer;z-index:2;padding:6px}
 .fab{position:fixed;right:18px;bottom:calc(22px + env(safe-area-inset-bottom));width:58px;height:58px;border-radius:50%;font-size:30px;line-height:1;background:var(--accent);color:#141414;border:none;box-shadow:0 4px 14px rgba(0,0,0,.45);z-index:50;cursor:pointer}
 </style>
 </head>
@@ -110,15 +115,6 @@ form.add button{background:var(--input);color:var(--accent);border:1px solid var
       <button id="leechStudy">⚠ 苦手だけ学習</button>
     </div>
     <div class="list" id="list"></div>
-    <form class="add" id="addForm">
-      <b id="addTitle">＋ 単語を追加</b>
-      <input id="fWord" placeholder="単語" required>
-      <input id="fReading" placeholder="ピンイン（中国語のみ）">
-      <input id="fMeaning" placeholder="意味" required>
-      <input id="fExample" placeholder="例文">
-      <input id="fExReading" placeholder="例文ピンイン（中国語のみ）">
-      <button type="submit">追加する</button>
-    </form>
     <div class="row">
       <button id="expCsv">📤 CSV出力</button>
       <button id="expJson">📤 JSON出力（全データ）</button>
@@ -139,9 +135,22 @@ form.add button{background:var(--input);color:var(--accent);border:1px solid var
       </div>
       <div class="note" id="ghStatus">未設定：ローカル保存のみで動作中</div>
     </form>
-    <p class="note">進捗はこのブラウザ内に自動保存され、GitHub経由でPC版とも自動同期されます。状態は上の ☁ ピルで確認でき、タップすると今すぐ同期します。一覧の単語をタップすると編集、長押しで削除できます。</p>
   </section>
 </main>
+<div id="addModal" class="modal">
+  <div class="modal-card">
+    <button id="addClose" class="modal-x" aria-label="閉じる">×</button>
+    <form class="add" id="addForm">
+      <b id="addTitle">＋ 単語を追加</b>
+      <input id="fWord" placeholder="単語" required>
+      <input id="fReading" placeholder="ピンイン（中国語のみ）">
+      <input id="fMeaning" placeholder="意味" required>
+      <input id="fExample" placeholder="例文">
+      <input id="fExReading" placeholder="例文ピンイン（中国語のみ）">
+      <button type="submit">追加する</button>
+    </form>
+  </div>
+</div>
 <button id="fabAdd" class="fab" title="単語を追加">＋</button>
 
 <script>
@@ -200,7 +209,7 @@ function nextCard(){
     if (leechMode){
       $('badge').textContent = ''; $('word').textContent = '🎉 苦手単語はありません';
       $('reading').textContent = ''; $('meaning').textContent = ''; $('example').textContent = '';
-      $('hint').textContent = '「難しい」が' + LEECH_MIN + '回以上の単語がここに出ます。';
+      $('hint').textContent = '';
       setGrades(false); $('stats').textContent = statsText(); stopTimer(); return;
     }
     if (totalAll === 0){
@@ -225,7 +234,7 @@ function nextCard(){
       $('word').textContent = currentCloze;
       $('word').style.fontSize = '23px';
       $('reading').textContent = ''; $('meaning').textContent = it.meaning || ''; $('meaning').style.fontSize = '17px'; $('example').textContent = '';
-      $('hint').textContent = '意味と文から思い出して、タップで答え合わせ';
+      $('hint').textContent = 'タップで答え合わせ';
     } else {
       $('badge').textContent = (leechMode ? '⚠ 苦手 ' : '') + mixLabel;
       $('word').textContent = it.word;
@@ -263,7 +272,7 @@ function toggle(){
     if (currentCloze){
       $('word').textContent = currentCloze; $('word').style.fontSize = '23px';
       $('reading').textContent = ''; $('meaning').textContent = it.meaning || ''; $('meaning').style.fontSize = '17px'; $('example').textContent = '';
-      $('hint').textContent = '意味と文から思い出して、タップで答え合わせ';
+      $('hint').textContent = 'タップで答え合わせ';
     } else {
       $('reading').textContent = ''; $('meaning').textContent = ''; $('example').textContent = '';
       $('hint').textContent = 'タップで意味を表示';
@@ -380,7 +389,7 @@ $('addForm').addEventListener('submit', e => {
     if (listDeck === 'cn'){ ni.reading = $('fReading').value.trim(); ni.example_reading = $('fExReading').value.trim(); }
     arr.push(ni);
   }
-  save(); markDirty(listDeck); e.target.reset(); renderList(); alert('追加しました（自動でGitHubに同期されます）');
+  save(); markDirty(listDeck); e.target.reset(); renderList(); closeAddModal(); alert('追加しました（自動でGitHubに同期されます）');
 });
 function download(name, text, type){
   const a = document.createElement('a');
@@ -419,6 +428,7 @@ function clozeParts(word){
   }
   return parts;
 }
+function blankFor(text, deck){ const n = [...String(text)].length; return deck === 'en' ? '_'.repeat(n) : '＿'.repeat(n); }
 function makeCloze(item, deck){
   const ex = item.example || '';
   if (!ex) return null;
@@ -431,7 +441,7 @@ function makeCloze(item, deck){
     const p = needle(parts[0].text);
     if (!hay.includes(p)) return null;
     let out = '', idx = 0, hit = 0;
-    while (true){ const i = hay.indexOf(p, idx); if (i < 0) break; out += ex.slice(idx, i) + '＿＿'; idx = i + p.length; hit++; }
+    while (true){ const i = hay.indexOf(p, idx); if (i < 0) break; out += ex.slice(idx, i) + blankFor(parts[0].text, deck); idx = i + p.length; hit++; }
     return hit ? out + ex.slice(idx) : null;
   }
   let out = '', last = 0, pos = 0, hit = 0;
@@ -439,7 +449,7 @@ function makeCloze(item, deck){
     const p = needle(part.text);
     const i = hay.indexOf(p, pos);
     if (i < 0){ if (part.optional) continue; return null; }
-    out += ex.slice(last, i) + '＿＿';
+    out += ex.slice(last, i) + blankFor(part.text, deck);
     last = i + p.length; pos = last; hit++;
   }
   return hit ? out + ex.slice(last) : null;
@@ -630,11 +640,16 @@ $('syncPill').addEventListener('click', async () => {
   await syncPullAll();
   if (mode === 'list') renderList(); else { current = null; nextCard(); }
 });
-$('fabAdd').addEventListener('click', () => {
+function openAddModal(){
   if (mode === 'en' || mode === 'cn') listDeck = mode;
-  if (mode !== 'list') document.querySelector('[data-mode="list"]').click(); else renderList();
-  setTimeout(() => { $('addForm').scrollIntoView({behavior:'smooth', block:'center'}); try { $('fWord').focus({preventScroll:true}); } catch(e){} }, 90);
-});
+  $('addTitle').textContent = '＋ 単語を追加（' + (listDeck === 'en' ? '英語' : '中国語') + '）';
+  $('addModal').classList.add('on');
+  setTimeout(() => { try { $('fWord').focus({preventScroll:true}); } catch(e){} }, 60);
+}
+function closeAddModal(){ $('addModal').classList.remove('on'); }
+$('fabAdd').addEventListener('click', openAddModal);
+$('addClose').addEventListener('click', closeAddModal);
+$('addModal').addEventListener('click', e => { if (e.target === $('addModal')) closeAddModal(); });
 document.addEventListener('visibilitychange', () => { if (!document.hidden && ghReady() && Date.now() - lastPull > 60000) syncPullAll(); });
 window.addEventListener('online', () => { if (ghReady()) syncPullAll(); });
 

@@ -466,6 +466,63 @@ function playTTSUrl(url){
     } catch(e){ reject(e); }
   });
 }
+// 高音質ニューラル音声 (Edge読み上げ / Xiaoxiao等)
+const EDGE_TOKEN = '6A5AA1D4EAFF4E9FB37E23D68491D6F4';
+async function secMsGec(){
+  const ticks = Math.floor((Date.now() / 1000 + 11644473600) * 1e7 / 3e9) * 3e9;
+  const str = String(ticks) + EDGE_TOKEN;
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+  return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('').toUpperCase();
+}
+function escXml(t){ return t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+async function edgeSpeakBlob(text, deck){
+  const voice = deck === 'cn' ? 'zh-CN-XiaoxiaoNeural' : 'en-US-AriaNeural';
+  const lang = deck === 'cn' ? 'zh-CN' : 'en-US';
+  const gec = await secMsGec();
+  const url = 'wss://speech.platform.bing.com/consumer/speech/synthesize/readaloud/edge/v1?TrustedClientToken=' + EDGE_TOKEN + '&Sec-MS-GEC=' + gec + '&Sec-MS-GEC-Version=1-130.0.2849.68';
+  return new Promise((resolve, reject) => {
+    let ws, chunks = [], done = false;
+    const fail = e => { if (!done){ done = true; try { ws && ws.close(); } catch(_){} reject(e || new Error('edge')); } };
+    const timer = setTimeout(() => fail(new Error('timeout')), 4000);
+    try { ws = new WebSocket(url); } catch(e){ clearTimeout(timer); return fail(e); }
+    ws.binaryType = 'arraybuffer';
+    ws.onopen = () => {
+      const ts = new Date().toISOString();
+      ws.send('X-Timestamp:' + ts + '\r\nContent-Type:application/json; charset=utf-8\r\nPath:speech.config\r\n\r\n' + JSON.stringify({ context: { synthesis: { audio: { metadataoptions: { sentenceBoundaryEnabled: 'false', wordBoundaryEnabled: 'false' }, outputFormat: 'audio-24khz-48kbitrate-mono-mp3' } } } }));
+      const reqId = [...crypto.getRandomValues(new Uint8Array(16))].map(b => b.toString(16).padStart(2, '0')).join('');
+      const ssml = '<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="' + lang + '"><voice name="' + voice + '"><prosody pitch="+0Hz" rate="+0%" volume="+100%">' + escXml(text) + '</prosody></voice></speak>';
+      ws.send('X-RequestId:' + reqId + '\r\nContent-Type:application/ssml+xml\r\nX-Timestamp:' + ts + 'Z\r\nPath:ssml\r\n\r\n' + ssml);
+    };
+    ws.onmessage = ev => {
+      if (typeof ev.data === 'string'){
+        if (ev.data.includes('Path:turn.end')){
+          clearTimeout(timer);
+          if (!done){ done = true; try { ws.close(); } catch(_){}
+            const blob = new Blob(chunks, { type: 'audio/mpeg' });
+            blob.size > 800 ? resolve(blob) : reject(new Error('empty'));
+          }
+        }
+      } else {
+        const dv = new DataView(ev.data);
+        if (ev.data.byteLength < 2) return;
+        const hlen = dv.getUint16(0);
+        const header = new TextDecoder().decode(ev.data.slice(2, 2 + hlen));
+        if (header.includes('Path:audio')) chunks.push(ev.data.slice(2 + hlen));
+      }
+    };
+    ws.onerror = () => { clearTimeout(timer); fail(new Error('ws')); };
+    ws.onclose = () => { if (!done && chunks.length){ clearTimeout(timer); done = true; const blob = new Blob(chunks, { type: 'audio/mpeg' }); blob.size > 800 ? resolve(blob) : fail(new Error('closed')); } };
+  });
+}
+
+let edgeDead = false;
+async function speakViaEdge(text, deck){
+  const blob = await edgeSpeakBlob(text.slice(0, 200), deck);
+  const url = URL.createObjectURL(blob);
+  try { await playTTSUrl(url); }
+  finally { setTimeout(() => URL.revokeObjectURL(url), 30000); }
+}
+
 async function speakViaWeb(text, deck){
   const lan = deck === 'cn' ? 'zh' : 'en';
   const enc = encodeURIComponent(text.slice(0, 200));
@@ -484,8 +541,9 @@ function speakLocal(text, deck){
     const doSpeak = () => {
       try {
         const u = new SpeechSynthesisUtterance(text);
-        const vs = synth.getVoices() || [];
-        const v = vs.find(v => (v.lang || '').toLowerCase().startsWith(deck === 'cn' ? 'zh' : 'en'));
+        const vs = (synth.getVoices() || []).filter(v => (v.lang || '').toLowerCase().startsWith(deck === 'cn' ? 'zh' : 'en'));
+        const vscore = v => { const s = ((v.name || '') + ' ' + (v.voiceURI || '')).toLowerCase(); return (s.includes('premium') || s.includes('enhanced')) ? 3 : (s.includes('siri') ? 2 : 0); };
+        const v = vs.sort((a, b) => vscore(b) - vscore(a))[0];
         if (v){ u.voice = v; u.lang = v.lang; } else { u.lang = deck === 'cn' ? 'zh-CN' : 'en-US'; }
         u.rate = deck === 'cn' ? 0.78 : 0.92;
         let started = false, settled = false;
@@ -506,6 +564,10 @@ function speakLocal(text, deck){
 async function speak(text, deck){
   text = (text || '').trim();
   if (!text) return;
+  if (!edgeDead){
+    try { await speakViaEdge(text, deck); return; }
+    catch(e){ edgeDead = true; }
+  }
   if ('speechSynthesis' in window){
     const okLocal = await speakLocal(text, deck);
     if (okLocal) return;

@@ -347,8 +347,9 @@ function ghSaveSha(){ try { localStorage.setItem('vocabGhSha', JSON.stringify(gh
 function b64enc(str){ return btoa(unescape(encodeURIComponent(str))); }
 function b64dec(b64){ return decodeURIComponent(escape(atob(b64.replace(/\s/g, '')))); }
 async function ghApi(method, file, payload){
-  const url = 'https://api.github.com/repos/' + ghCfg.owner + '/' + ghCfg.repo + '/contents/' + file + (method === 'GET' ? ('?ref=' + (ghCfg.branch || 'main')) : '');
+  const url = 'https://api.github.com/repos/' + ghCfg.owner + '/' + ghCfg.repo + '/contents/' + file + (method === 'GET' ? ('?ref=' + (ghCfg.branch || 'main') + '&_=' + Date.now()) : '');
   const opt = { method: method, headers: { 'Authorization': 'Bearer ' + ghCfg.token, 'Accept': 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28' } };
+  if (method === 'GET') opt.cache = 'no-store';
   if (payload){ opt.headers['Content-Type'] = 'application/json'; opt.body = JSON.stringify(payload); }
   const res = await fetch(url, opt);
   if (res.status === 404 && method === 'GET') return null;

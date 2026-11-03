@@ -224,13 +224,13 @@ function nextCard(){
       $('badge').textContent = (leechMode ? '⚠ 苦手 ' : '') + '🕳 穴埋め ' + mixLabel;
       $('word').textContent = currentCloze;
       $('word').style.fontSize = '23px';
-      $('reading').textContent = ''; $('meaning').textContent = it.meaning || ''; $('example').textContent = '';
+      $('reading').textContent = ''; $('meaning').textContent = it.meaning || ''; $('meaning').style.fontSize = '17px'; $('example').textContent = '';
       $('hint').textContent = '意味と文から思い出して、タップで答え合わせ';
     } else {
       $('badge').textContent = (leechMode ? '⚠ 苦手 ' : '') + mixLabel;
       $('word').textContent = it.word;
       $('word').style.fontSize = '';
-      $('reading').textContent = ''; $('meaning').textContent = ''; $('example').textContent = '';
+      $('reading').textContent = ''; $('meaning').textContent = ''; $('meaning').style.fontSize = ''; $('example').textContent = '';
       $('hint').textContent = 'タップで意味を表示';
     }
     setGrades(true);
@@ -262,7 +262,7 @@ function toggle(){
   } else {
     if (currentCloze){
       $('word').textContent = currentCloze; $('word').style.fontSize = '23px';
-      $('reading').textContent = ''; $('meaning').textContent = it.meaning || ''; $('example').textContent = '';
+      $('reading').textContent = ''; $('meaning').textContent = it.meaning || ''; $('meaning').style.fontSize = '17px'; $('example').textContent = '';
       $('hint').textContent = '意味と文から思い出して、タップで答え合わせ';
     } else {
       $('reading').textContent = ''; $('meaning').textContent = ''; $('example').textContent = '';

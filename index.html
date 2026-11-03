@@ -322,67 +322,67 @@ $('impJson').addEventListener('change', e => {
   rd.onload = () => { try { const j = JSON.parse(rd.result); if (Array.isArray(j.en) && Array.isArray(j.cn)){ data = j; save(); markDirty('en'); markDirty('cn'); renderList(); alert('取り込みました（英語' + j.en.length + '件／中国語' + j.cn.length + '件）'); } else if (Array.isArray(j)) { data[listDeck] = j; save(); markDirty(listDeck); renderList(); alert('取り込みました（' + j.length + '件）'); } else alert('形式が違います'); } catch(err){ alert('読み込みに失敗しました'); } };
   rd.readAsText(f);
 });
-$('resetBtn').addEventListener('click', async () => { await syncPullAll(); renderList(); current = null; nextCard(); alert('GitHubから再取得しました'); });
+$('resetBtn').addEventListener('click', async () => { if (!confirm('GitHub上の内容で上書きします。この端末だけにある未送信の変更は消えます。よろしいですか？')) return; await forcePullAll(); renderList(); current = null; nextCard(); alert('GitHubから再取得しました'); });
 
 
-// ===== GitHub sync =====
+// ===== GitHub sync (base-snapshot方式) =====
+// ルール: 起動時 = GitHubと「前回同期した状態(base)」を比べて3方向判定。
+//   GitHubが新しい & 自分が未変更 → GitHubを取り込む（削除も反映）
+//   自分が未変更でない & GitHubが同じ → 自分の変更を送る
+//   両方変化（同時利用）→ 単語単位マージ（進捗優先）して送る
+// 利用中 = 変更のたびにプッシュのみ。
 const GH_FILES = { en: 'english_vocab.json', cn: 'chinese_vocab.json' };
-let ghCfg = null, ghSha = {}, pushTimers = {};
+let ghCfg = null;
 try { ghCfg = JSON.parse(localStorage.getItem('vocabGhCfg') || 'null'); } catch(e){}
-try { ghSha = JSON.parse(localStorage.getItem('vocabGhSha') || '{}'); } catch(e){}
 function ghStatus(msg){ const el = $('ghStatus'); if (el) el.textContent = msg; }
+function ghReady(){ return !!(ghCfg && ghCfg.owner && ghCfg.repo && ghCfg.token); }
+function b64enc(str){ return btoa(unescape(encodeURIComponent(str))); }
+function b64dec(b64){ return decodeURIComponent(escape(atob(b64.replace(/\s/g, '')))); }
+
+let ghBase = {}; try { ghBase = JSON.parse(localStorage.getItem('vocabGhBaseV3') || '{}'); } catch(e){}
+function saveBase(){ try { localStorage.setItem('vocabGhBaseV3', JSON.stringify(ghBase)); } catch(e){} }
+const SYNC_FIELDS = ['word','meaning','example','interval','next_review','reading','example_reading'];
+function canon(items){
+  const norm = (items || []).map(it => { const o = {}; SYNC_FIELDS.forEach(f => { o[f] = (it[f] === undefined ? (f === 'interval' ? 0 : '') : it[f]); }); return o; });
+  norm.sort((a, b) => { const x = String(a.word).toLowerCase(), y = String(b.word).toLowerCase(); return x < y ? -1 : (x > y ? 1 : 0); });
+  return JSON.stringify(norm);
+}
+function sameItems(a, b){ return canon(a) === canon(b); }
+function pendingDeck(deck){ const b = ghBase[deck]; if (!b) return (data[deck] || []).length > 0; return !sameItems(data[deck], b.items); }
+function anyPending(){ return ['en','cn'].some(pendingDeck); }
+
 let syncBusy = false, syncErr = '', lastPull = 0;
-let dirtyDecks = new Set(); try { dirtyDecks = new Set(JSON.parse(localStorage.getItem('vocabDirty') || '[]')); } catch(e){}
-function saveDirty(){ try { localStorage.setItem('vocabDirty', JSON.stringify([...dirtyDecks])); } catch(e){} }
 function syncUi(){
   const p = $('syncPill'); if (!p) return;
   if (!ghReady()) p.textContent = '☁ 未設定';
   else if (syncBusy) p.textContent = '⏳ 同期中…';
   else if (syncErr) p.textContent = '⚠ 失敗（タップで再試行）';
-  else if (dirtyDecks.size) p.textContent = '📤 未送信あり（タップで同期）';
+  else if (anyPending()) p.textContent = '📤 未送信あり（タップで同期）';
   else p.textContent = '☁ 同期済み';
 }
-function ghReady(){ return !!(ghCfg && ghCfg.owner && ghCfg.repo && ghCfg.token); }
-function ghSaveSha(){ try { localStorage.setItem('vocabGhSha', JSON.stringify(ghSha)); } catch(e){} }
-let syncedKeys = {}; try { syncedKeys = JSON.parse(localStorage.getItem('vocabSynced') || '{}'); } catch(e){}
-function saveSynced(){ try { localStorage.setItem('vocabSynced', JSON.stringify(syncedKeys)); } catch(e){} }
-const wordKey = it => String(it.word || '').toLowerCase();
-function mergePull(deck, remoteItems){
-  let local = data[deck];
-  const base = syncedKeys[deck];
-  if (Array.isArray(base) && !dirtyDecks.has(deck)){
-    const bset = new Set(base); const rkeys = new Set(remoteItems.map(wordKey));
-    local = local.filter(it => { const k = wordKey(it); return rkeys.has(k) || !bset.has(k); });
-  }
-  const merged = mergeVocab(local, remoteItems);
-  syncedKeys[deck] = merged.map(wordKey); saveSynced();
-  return merged;
-}
-function b64enc(str){ return btoa(unescape(encodeURIComponent(str))); }
-function b64dec(b64){ return decodeURIComponent(escape(atob(b64.replace(/\s/g, '')))); }
+
 async function ghApi(method, file, payload){
   const url = 'https://api.github.com/repos/' + ghCfg.owner + '/' + ghCfg.repo + '/contents/' + file + (method === 'GET' ? ('?ref=' + (ghCfg.branch || 'main') + '&_=' + Date.now()) : '');
   const opt = { method: method, headers: { 'Authorization': 'Bearer ' + ghCfg.token, 'Accept': 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28' } };
   if (method === 'GET') opt.cache = 'no-store';
   if (payload){ opt.headers['Content-Type'] = 'application/json'; opt.body = JSON.stringify(payload); }
   const res = await fetch(url, opt);
-  if (res.status === 404 && method === 'GET') return null;
+  if (res.status === 404) return null;
   if (!res.ok) throw new Error('GitHub API ' + res.status);
   return res.json();
 }
-async function ghFetchDeck(deck){
-  const j = await ghApi('GET', GH_FILES[deck]);
+async function ghGet(file){
+  const j = await ghApi('GET', file);
   if (!j) return null;
-  ghSha[deck] = j.sha; ghSaveSha();
-  return JSON.parse(b64dec(j.content));
+  return { items: JSON.parse(b64dec(j.content)), sha: j.sha };
 }
-async function ghPushDeck(deck, items){
-  const payload = { message: 'sync ' + GH_FILES[deck], content: b64enc(JSON.stringify(items, null, 2)), branch: ghCfg.branch || 'main' };
-  if (ghSha[deck]) payload.sha = ghSha[deck];
-  const j = await ghApi('PUT', GH_FILES[deck], payload);
-  if (j && j.content) ghSha[deck] = j.content.sha;
-  ghSaveSha();
+async function ghPut(file, items, sha){
+  const payload = { message: 'sync ' + file, content: b64enc(JSON.stringify(items, null, 2)), branch: ghCfg.branch || 'main' };
+  if (sha) payload.sha = sha;
+  const j = await ghApi('PUT', file, payload);
+  return j && j.content ? j.content.sha : null;
 }
+
 function mergeVocab(localItems, remoteItems){
   const key = it => String(it.word || '').toLowerCase();
   const score = it => [it.interval || 0, String(it.next_review || '')];
@@ -393,38 +393,97 @@ function mergeVocab(localItems, remoteItems){
   remoteItems.forEach(it => { if (!seen[key(it)]) out.push(it); });
   return out;
 }
-async function pushDeck(deck){
-  if (!ghReady()) return;
-  syncBusy = true; syncUi();
-  try { await ghPushDeck(deck, data[deck]); dirtyDecks.delete(deck); saveDirty(); syncedKeys[deck] = data[deck].map(wordKey); saveSynced(); syncErr = ''; ghStatus('☁ 同期済み ' + new Date().toLocaleTimeString()); }
-  catch(e){
-    try { const remote = await ghFetchDeck(deck); if (remote) data[deck] = mergeVocab(data[deck], remote); save(); await ghPushDeck(deck, data[deck]); dirtyDecks.delete(deck); saveDirty(); syncedKeys[deck] = data[deck].map(wordKey); saveSynced(); syncErr = ''; ghStatus('☁ 競合をマージして同期しました'); }
-    catch(e2){ syncErr = e2.message; ghStatus('⚠ 同期に失敗（' + e2.message + '）次回開いたときに再同期します'); }
-  }
-  syncBusy = false; syncUi();
-}
+
+let pushTimers = {};
 function markDirty(deck){
+  syncUi();
   if (!ghReady()) return;
-  dirtyDecks.add(deck); saveDirty(); syncUi();
   clearTimeout(pushTimers[deck]);
   pushTimers[deck] = setTimeout(() => pushDeck(deck), 1200);
 }
+
+async function pushDeck(deck, shaOverride){
+  if (!ghReady()) return;
+  const file = GH_FILES[deck];
+  const base = ghBase[deck];
+  const sha = shaOverride !== undefined ? shaOverride : (base ? base.sha : undefined);
+  syncBusy = true; syncUi();
+  try {
+    const newSha = await ghPut(file, data[deck], sha);
+    ghBase[deck] = { sha: newSha, items: JSON.parse(JSON.stringify(data[deck])) };
+    saveBase(); syncErr = '';
+    ghStatus('☁ 同期済み ' + new Date().toLocaleTimeString());
+  } catch(e) {
+    if (String(e.message).includes('409') || String(e.message).includes('422')) {
+      try {
+        const remote = await ghGet(file);
+        const merged = remote ? mergeVocab(data[deck], remote.items) : data[deck];
+        const newSha = await ghPut(file, merged, remote ? remote.sha : undefined);
+        data[deck] = merged; save();
+        ghBase[deck] = { sha: newSha, items: JSON.parse(JSON.stringify(merged)) };
+        saveBase(); syncErr = '';
+        ghStatus('☁ 競合をマージして同期しました');
+        if (mode === 'list') renderList();
+      } catch(e2){ syncErr = e2.message; ghStatus('⚠ 同期に失敗（' + e2.message + '）'); }
+    } else { syncErr = e.message; ghStatus('⚠ 同期に失敗（' + e.message + '）次回開いたときに再同期します'); }
+  }
+  syncBusy = false; syncUi();
+}
+
+async function syncDeck(deck){
+  const file = GH_FILES[deck];
+  const base = ghBase[deck];
+  const remote = await ghGet(file);
+  if (!remote){
+    if ((data[deck] || []).length) await pushDeck(deck);
+    else { ghBase[deck] = { sha: null, items: [] }; saveBase(); }
+    return;
+  }
+  if (!base){
+    if (!(data[deck] || []).length || sameItems(data[deck], remote.items)){
+      data[deck] = remote.items; save();
+      ghBase[deck] = { sha: remote.sha, items: JSON.parse(JSON.stringify(remote.items)) };
+      saveBase(); return;
+    }
+    const merged0 = mergeVocab(data[deck], remote.items);
+    data[deck] = merged0; save();
+    await pushDeck(deck, remote.sha);
+    return;
+  }
+  const localChanged = !sameItems(data[deck], base.items);
+  const remoteChanged = base.sha !== remote.sha;
+  if (!remoteChanged && !localChanged) return;
+  if (!remoteChanged && localChanged){ await pushDeck(deck); return; }
+  if (remoteChanged && !localChanged){
+    data[deck] = remote.items; save();
+    ghBase[deck] = { sha: remote.sha, items: JSON.parse(JSON.stringify(remote.items)) };
+    saveBase(); return;
+  }
+  const merged = mergeVocab(data[deck], remote.items);
+  data[deck] = merged; save();
+  await pushDeck(deck, remote.sha);
+}
+
 async function syncPullAll(){
   if (!ghReady()){ ghStatus('未設定：ローカル保存のみで動作中'); syncUi(); return; }
   syncBusy = true; syncUi(); lastPull = Date.now();
   ghStatus('☁ 同期中…');
-  let ok = true, missing = 0, lastErr = '';
-  for (const deck of ['en', 'cn']){
-    try { const remote = await ghFetchDeck(deck); if (remote){ data[deck] = mergePull(deck, remote); } else missing++; }
-    catch(e){ ok = false; lastErr = e.message; }
-  }
-  save();
+  let err = '';
+  for (const deck of ['en','cn']){ try { await syncDeck(deck); } catch(e){ err = e.message; } }
   syncBusy = false;
-  if (!ok){ syncErr = lastErr; ghStatus('⚠ 同期失敗（' + lastErr + '）'); }
-  else if (missing){ syncErr = 'データ未検出'; ghStatus('⚠ 単語データが見つかりません（トークンの対象リポジトリが vocab-data か確認してね）'); }
-  else { syncErr = ''; ghStatus('☁ 同期完了 ' + new Date().toLocaleTimeString()); }
+  if (err){ syncErr = err; ghStatus('⚠ 同期失敗（' + err + '）'); }
+  else { syncErr = ''; ghStatus(anyPending() ? '📤 未送信の変更があります（タップで同期）' : '☁ 同期完了 ' + new Date().toLocaleTimeString()); }
   syncUi();
 }
+
+async function forcePullAll(){
+  if (!ghReady()) return;
+  for (const deck of ['en','cn']){
+    try { const remote = await ghGet(GH_FILES[deck]); if (remote){ data[deck] = remote.items; ghBase[deck] = { sha: remote.sha, items: JSON.parse(JSON.stringify(remote.items)) }; } } catch(e){}
+  }
+  save(); saveBase(); syncUi();
+}
+
 function fillGhForm(){
   if (!ghCfg) return;
   $('ghOwner').value = ghCfg.owner || ''; $('ghRepo').value = ghCfg.repo || '';
@@ -435,14 +494,15 @@ $('ghSave').addEventListener('click', async () => {
   try { localStorage.setItem('vocabGhCfg', JSON.stringify(ghCfg)); } catch(e){}
   if (ghReady()){ await syncPullAll(); if (mode === 'list') renderList(); current = null; nextCard(); }
   else ghStatus('入力が不足しています');
+  syncUi();
 });
-$('ghSyncNow').addEventListener('click', async () => { await syncPullAll(); await pushDeck('en'); await pushDeck('cn'); if (mode === 'list') renderList(); current = null; nextCard(); });
+$('ghSyncNow').addEventListener('click', async () => { await syncPullAll(); if (mode === 'list') renderList(); else { current = null; nextCard(); } });
 fillGhForm();
 syncUi();
 
 $('syncPill').addEventListener('click', async () => {
   if (!ghReady()){ document.querySelector('[data-mode="list"]').click(); setTimeout(() => $('ghForm').scrollIntoView({behavior:'smooth'}), 80); return; }
-  await syncPullAll(); await pushDeck('en'); await pushDeck('cn');
+  await syncPullAll();
   if (mode === 'list') renderList(); else { current = null; nextCard(); }
 });
 $('fabAdd').addEventListener('click', () => {
@@ -451,9 +511,10 @@ $('fabAdd').addEventListener('click', () => {
   setTimeout(() => { $('addForm').scrollIntoView({behavior:'smooth', block:'center'}); try { $('fWord').focus({preventScroll:true}); } catch(e){} }, 90);
 });
 document.addEventListener('visibilitychange', () => { if (!document.hidden && ghReady() && Date.now() - lastPull > 60000) syncPullAll(); });
-window.addEventListener('online', () => { [...dirtyDecks].forEach(d => pushDeck(d)); });
+window.addEventListener('online', () => { if (ghReady()) syncPullAll(); });
 
-(async () => { await syncPullAll(); for (const d of [...dirtyDecks]) await pushDeck(d); nextCard(); syncUi(); })();
+(async () => { await syncPullAll(); nextCard(); syncUi(); })();
+
 </script>
 </body>
 </html>

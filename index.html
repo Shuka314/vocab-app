@@ -118,7 +118,7 @@ form.add button{background:var(--input);color:var(--accent);border:1px solid var
     </div>
 
     <form class="add" id="ghForm">
-      <b>☁ GitHub同期</b>
+      <b>☁ GitHub同期</b> <span class="note">同期方式 v3.1</span>
       <input id="ghOwner" placeholder="GitHubユーザー名（owner）">
       <input id="ghRepo" placeholder="リポジトリ名（Private）">
       <input id="ghToken" type="password" placeholder="トークン（Contents: Read and write）">
@@ -440,12 +440,17 @@ async function syncDeck(deck){
     return;
   }
   if (!base){
-    if (!(data[deck] || []).length || sameItems(data[deck], remote.items)){
+    // 初回(v3): GitHubの名簿を正とし、手元だけにある単語は取り込まない（旧方式の残骸を掃除）。
+    // 共有単語は進捗が進んでいる方を残す。
+    const key = it => String(it.word || '').toLowerCase();
+    const score = it => [it.interval || 0, String(it.next_review || '')];
+    const lmap = {}; (data[deck] || []).forEach(it => lmap[key(it)] = it);
+    const merged0 = remote.items.map(r => { const l = lmap[key(r)]; return (l && (score(l)[0] > score(r)[0] || (score(l)[0] === score(r)[0] && score(l)[1] > score(r)[1]))) ? l : r; });
+    if (sameItems(merged0, remote.items)){
       data[deck] = remote.items; save();
       ghBase[deck] = { sha: remote.sha, items: JSON.parse(JSON.stringify(remote.items)) };
       saveBase(); return;
     }
-    const merged0 = mergeVocab(data[deck], remote.items);
     data[deck] = merged0; save();
     await pushDeck(deck, remote.sha);
     return;

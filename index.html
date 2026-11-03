@@ -62,6 +62,8 @@ form.add button{background:var(--input);color:var(--accent);border:1px solid var
 .modal-card{position:relative;width:100%;max-width:520px;max-height:88vh;overflow-y:auto}
 .modal-card form.add{box-shadow:0 8px 30px rgba(0,0,0,.5)}
 .modal-x{position:absolute;top:4px;right:10px;background:none;border:none;color:var(--muted);font-size:26px;line-height:1;cursor:pointer;z-index:2;padding:6px}
+.speak-row{display:flex;gap:8px}
+.speak-row button{flex:1;padding:10px;border-radius:10px;border:1px solid var(--border);background:var(--card);color:var(--accent);font-size:14px;font-weight:700;cursor:pointer}
 .fab{position:fixed;right:18px;bottom:calc(22px + env(safe-area-inset-bottom));width:58px;height:58px;border-radius:50%;font-size:30px;line-height:1;background:var(--accent);color:#141414;border:none;box-shadow:0 4px 14px rgba(0,0,0,.45);z-index:50;cursor:pointer}
 </style>
 </head>
@@ -96,6 +98,10 @@ form.add button{background:var(--input);color:var(--accent);border:1px solid var
       <div class="meaning" id="meaning"></div>
       <div class="example" id="example"></div>
       <div class="hint" id="hint">タップで意味を表示</div>
+    </div>
+    <div class="speak-row">
+      <button id="speakWord" style="display:none">🔊 単語</button>
+      <button id="speakEx" style="display:none">🔊 例文</button>
     </div>
     <div class="grades">
       <button class="g-hard" id="btnHard">難しい</button>
@@ -153,6 +159,7 @@ form.add button{background:var(--input);color:var(--accent);border:1px solid var
 </div>
 <button id="fabAdd" class="fab" title="単語を追加">＋</button>
 
+<script defer src="https://cdn.jsdelivr.net/npm/pinyin-pro@3.26.0/dist/index.js"></script>
 <script>
 const INITIAL = { en: [], cn: [] };
 const LS_KEY = 'vocabAppDataV1';
@@ -210,13 +217,13 @@ function nextCard(){
       $('badge').textContent = ''; $('word').textContent = '🎉 苦手単語はありません';
       $('reading').textContent = ''; $('meaning').textContent = ''; $('example').textContent = '';
       $('hint').textContent = '';
-      setGrades(false); $('stats').textContent = statsText(); stopTimer(); return;
+      setGrades(false); $('stats').textContent = statsText(); stopTimer(); updateSpeakBtns(); return;
     }
     if (totalAll === 0){
       $('badge').textContent = ''; $('word').textContent = '単語がありません';
       $('reading').textContent = ''; $('meaning').textContent = ''; $('example').textContent = '';
       $('hint').textContent = ghReady() ? '☁ 同期中…少し待ってね' : '「⚙ 一覧」タブで GitHub同期を設定してね';
-      setGrades(false); $('stats').textContent = statsText(); stopTimer(); return;
+      setGrades(false); $('stats').textContent = statsText(); stopTimer(); updateSpeakBtns(); return;
     }
     $('badge').textContent = ''; $('word').textContent = '🎉 TODAY CLEAR!';
     $('reading').textContent = ''; $('meaning').textContent = ''; $('example').textContent = '';
@@ -246,10 +253,12 @@ function nextCard(){
     if ($('timerChk').checked) startTimer();
   }
   $('stats').textContent = statsText();
+  updateSpeakBtns();
 }
 function setGrades(on){ ['btnHard','btnNormal','btnEasy'].forEach(id => $(id).disabled = !on); }
 function toggle(){
   if (!current) return;
+  setTimeout(updateSpeakBtns, 0);
   shown = !shown; const it = current.item;
   if (shown && currentCloze){
     $('word').textContent = it.word; $('word').style.fontSize = '';
@@ -396,6 +405,30 @@ function download(name, text, type){
   a.href = URL.createObjectURL(new Blob([text], {type: type})); a.download = name; a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 2000);
 }
+function toPinyin(text, isWord){
+  try {
+    if (!window.pinyinPro || !/[\u4e00-\u9fff]/.test(text)) return '';
+    return isWord ? pinyinPro.pinyin(text, { toneType: 'symbol', type: 'string', separator: '' })
+                  : pinyinPro.pinyin(text, { toneType: 'symbol', type: 'string' });
+  } catch(e){ return ''; }
+}
+let pyTimerW = null, pyTimerE = null;
+$('fWord').addEventListener('input', () => {
+  if (listDeck !== 'cn') return;
+  clearTimeout(pyTimerW);
+  pyTimerW = setTimeout(() => {
+    const py = toPinyin($('fWord').value.trim(), true);
+    if (py && ($('fReading').value === '' || $('fReading').value === lastAutoReading)){ $('fReading').value = py; lastAutoReading = py; }
+  }, 250);
+});
+$('fExample').addEventListener('input', () => {
+  if (listDeck !== 'cn') return;
+  clearTimeout(pyTimerE);
+  pyTimerE = setTimeout(() => {
+    const py = toPinyin($('fExample').value.trim(), false);
+    if (py && ($('fExReading').value === '' || $('fExReading').value === lastAutoExReading)){ $('fExReading').value = py; lastAutoExReading = py; }
+  }, 250);
+});
 $('expCsv').addEventListener('click', () => {
   const dk = listDeck; const rows = [];
   const esc = v => '"' + String(v == null ? '' : v).replace(/"/g,'""') + '"';
@@ -413,6 +446,36 @@ $('impJson').addEventListener('change', e => {
 });
 $('resetBtn').addEventListener('click', async () => { if (!confirm('GitHub上の内容で上書きします。この端末だけにある未送信の変更は消えます。よろしいですか？')) return; await forcePullAll(); renderList(); current = null; nextCard(); alert('GitHubから再取得しました'); });
 
+
+// ===== 音声再生 =====
+function speak(text, deck){
+  text = (text || '').trim();
+  if (!text || !('speechSynthesis' in window)) return;
+  try {
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = deck === 'cn' ? 'zh-CN' : 'en-US';
+    const vs = speechSynthesis.getVoices() || [];
+    const v = vs.find(v => (v.lang || '').toLowerCase().startsWith(deck === 'cn' ? 'zh' : 'en'));
+    if (v) u.voice = v;
+    u.rate = 0.92;
+    speechSynthesis.speak(u);
+  } catch(e){}
+}
+if ('speechSynthesis' in window){ try { speechSynthesis.getVoices(); } catch(e){} }
+function updateSpeakBtns(){
+  const w = $('speakWord'), x = $('speakEx');
+  if (!w || !x) return;
+  if (!current){ w.style.display = 'none'; x.style.display = 'none'; return; }
+  w.style.display = (!currentCloze || shown) ? '' : 'none';
+  x.style.display = (shown && current.item.example) ? '' : 'none';
+}
+$('speakWord').addEventListener('click', () => {
+  if (!current) return;
+  const it = current.item, t = String(it.word || '');
+  speak(t.includes('~') ? (it.example || t.replace(/~/g, ' ')) : t, current.deck);
+});
+$('speakEx').addEventListener('click', () => { if (current) speak(current.item.example, current.deck); });
 
 // ===== 穴埋め＆苦手 =====
 const LEECH_MIN = 3;
@@ -640,8 +703,12 @@ $('syncPill').addEventListener('click', async () => {
   await syncPullAll();
   if (mode === 'list') renderList(); else { current = null; nextCard(); }
 });
+let lastAutoReading = '', lastAutoExReading = '';
 function openAddModal(){
   if (mode === 'en' || mode === 'cn') listDeck = mode;
+  lastAutoReading = ''; lastAutoExReading = '';
+  $('fReading').style.display = listDeck === 'cn' ? '' : 'none';
+  $('fExReading').style.display = listDeck === 'cn' ? '' : 'none';
   $('addTitle').textContent = '＋ 単語を追加（' + (listDeck === 'en' ? '英語' : '中国語') + '）';
   $('addModal').classList.add('on');
   setTimeout(() => { try { $('fWord').focus({preventScroll:true}); } catch(e){} }, 60);

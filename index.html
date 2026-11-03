@@ -336,7 +336,7 @@ async function ghApi(method, file, payload){
   const opt = { method: method, headers: { 'Authorization': 'Bearer ' + ghCfg.token, 'Accept': 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28' } };
   if (payload){ opt.headers['Content-Type'] = 'application/json'; opt.body = JSON.stringify(payload); }
   const res = await fetch(url, opt);
-  if (res.status === 404) return null;
+  if (res.status === 404 && method === 'GET') return null;
   if (!res.ok) throw new Error('GitHub API ' + res.status);
   return res.json();
 }
@@ -368,7 +368,7 @@ async function pushDeck(deck){
   try { await ghPushDeck(deck, data[deck]); ghStatus('☁ 同期済み ' + new Date().toLocaleTimeString()); }
   catch(e){
     try { const remote = await ghFetchDeck(deck); if (remote) data[deck] = mergeVocab(data[deck], remote); save(); await ghPushDeck(deck, data[deck]); ghStatus('☁ 競合をマージして同期しました'); }
-    catch(e2){ ghStatus('⚠ 同期に失敗（オフライン？）次回開いたときに再同期します'); }
+    catch(e2){ ghStatus('⚠ 同期に失敗（' + e2.message + '）次回開いたときに再同期します'); }
   }
 }
 function markDirty(deck){
@@ -379,13 +379,15 @@ function markDirty(deck){
 async function syncPullAll(){
   if (!ghReady()){ ghStatus('未設定：ローカル保存のみで動作中'); return; }
   ghStatus('☁ 同期中…');
-  let ok = true;
+  let ok = true, missing = 0, lastErr = '';
   for (const deck of ['en', 'cn']){
-    try { const remote = await ghFetchDeck(deck); if (remote){ data[deck] = mergeVocab(data[deck], remote); } }
-    catch(e){ ok = false; }
+    try { const remote = await ghFetchDeck(deck); if (remote){ data[deck] = mergeVocab(data[deck], remote); } else missing++; }
+    catch(e){ ok = false; lastErr = e.message; }
   }
   save();
-  ghStatus(ok ? ('☁ 同期完了 ' + new Date().toLocaleTimeString()) : '⚠ 一部同期できませんでした（オフライン？）');
+  if (!ok) ghStatus('⚠ 同期失敗（' + lastErr + '）');
+  else if (missing) ghStatus('⚠ 単語データが見つかりません（トークンの対象リポジトリが vocab-data か確認してね）');
+  else ghStatus('☁ 同期完了 ' + new Date().toLocaleTimeString());
 }
 function fillGhForm(){
   if (!ghCfg) return;

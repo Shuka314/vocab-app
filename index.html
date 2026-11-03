@@ -49,11 +49,14 @@ form.add{display:flex;flex-direction:column;gap:8px;background:var(--card);borde
 form.add button{background:var(--input);color:var(--accent);border:1px solid var(--border);border-radius:10px;padding:12px;font-size:15px;font-weight:800}
 .note{font-size:12px;color:var(--muted);line-height:1.6}
 .danger{color:var(--warning)!important}
+.pill{border:1px solid var(--border);background:var(--card);color:var(--accent);border-radius:999px;padding:7px 12px;font-size:13px;font-weight:700;cursor:pointer}
+.fab{position:fixed;right:18px;bottom:calc(22px + env(safe-area-inset-bottom));width:58px;height:58px;border-radius:50%;font-size:30px;line-height:1;background:var(--accent);color:#141414;border:none;box-shadow:0 4px 14px rgba(0,0,0,.45);z-index:50;cursor:pointer}
 </style>
 </head>
 <body>
 <header>
   <h1>📖 単語帳</h1>
+  <button id="syncPill" class="pill">☁ 未設定</button>
   <div class="row" style="align-items:center">
     <label class="chk"><input type="checkbox" id="timerChk" style="width:20px;height:20px"> ⏳30秒</label>
     <select id="themeSel">
@@ -126,9 +129,10 @@ form.add button{background:var(--input);color:var(--accent);border:1px solid var
       </div>
       <div class="note" id="ghStatus">未設定：ローカル保存のみで動作中</div>
     </form>
-    <p class="note">進捗（復習間隔・次回復習日）はこのブラウザ内に自動保存されます。PC版とは自動同期されないので、データを移したいときはJSON出力／取込を使ってください。一覧の単語をタップすると編集、長押しで削除できます。</p>
+    <p class="note">進捗はこのブラウザ内に自動保存され、GitHub経由でPC版とも自動同期されます。状態は上の ☁ ピルで確認でき、タップすると今すぐ同期します。一覧の単語をタップすると編集、長押しで削除できます。</p>
   </section>
 </main>
+<button id="fabAdd" class="fab" title="単語を追加">＋</button>
 
 <script>
 const INITIAL = { en: [], cn: [] };
@@ -296,7 +300,7 @@ $('addForm').addEventListener('submit', e => {
     if (listDeck === 'cn'){ ni.reading = $('fReading').value.trim(); ni.example_reading = $('fExReading').value.trim(); }
     arr.push(ni);
   }
-  save(); markDirty(listDeck); e.target.reset(); renderList(); alert('追加しました');
+  save(); markDirty(listDeck); e.target.reset(); renderList(); alert('追加しました（自動でGitHubに同期されます）');
 });
 function download(name, text, type){
   const a = document.createElement('a');
@@ -327,6 +331,17 @@ let ghCfg = null, ghSha = {}, pushTimers = {};
 try { ghCfg = JSON.parse(localStorage.getItem('vocabGhCfg') || 'null'); } catch(e){}
 try { ghSha = JSON.parse(localStorage.getItem('vocabGhSha') || '{}'); } catch(e){}
 function ghStatus(msg){ const el = $('ghStatus'); if (el) el.textContent = msg; }
+let syncBusy = false, syncErr = '', lastPull = 0;
+let dirtyDecks = new Set(); try { dirtyDecks = new Set(JSON.parse(localStorage.getItem('vocabDirty') || '[]')); } catch(e){}
+function saveDirty(){ try { localStorage.setItem('vocabDirty', JSON.stringify([...dirtyDecks])); } catch(e){} }
+function syncUi(){
+  const p = $('syncPill'); if (!p) return;
+  if (!ghReady()) p.textContent = '☁ 未設定';
+  else if (syncBusy) p.textContent = '⏳ 同期中…';
+  else if (syncErr) p.textContent = '⚠ 失敗（タップで再試行）';
+  else if (dirtyDecks.size) p.textContent = '📤 未送信あり（タップで同期）';
+  else p.textContent = '☁ 同期済み';
+}
 function ghReady(){ return !!(ghCfg && ghCfg.owner && ghCfg.repo && ghCfg.token); }
 function ghSaveSha(){ try { localStorage.setItem('vocabGhSha', JSON.stringify(ghSha)); } catch(e){} }
 function b64enc(str){ return btoa(unescape(encodeURIComponent(str))); }
@@ -365,19 +380,23 @@ function mergeVocab(localItems, remoteItems){
 }
 async function pushDeck(deck){
   if (!ghReady()) return;
-  try { await ghPushDeck(deck, data[deck]); ghStatus('☁ 同期済み ' + new Date().toLocaleTimeString()); }
+  syncBusy = true; syncUi();
+  try { await ghPushDeck(deck, data[deck]); dirtyDecks.delete(deck); saveDirty(); syncErr = ''; ghStatus('☁ 同期済み ' + new Date().toLocaleTimeString()); }
   catch(e){
-    try { const remote = await ghFetchDeck(deck); if (remote) data[deck] = mergeVocab(data[deck], remote); save(); await ghPushDeck(deck, data[deck]); ghStatus('☁ 競合をマージして同期しました'); }
-    catch(e2){ ghStatus('⚠ 同期に失敗（' + e2.message + '）次回開いたときに再同期します'); }
+    try { const remote = await ghFetchDeck(deck); if (remote) data[deck] = mergeVocab(data[deck], remote); save(); await ghPushDeck(deck, data[deck]); dirtyDecks.delete(deck); saveDirty(); syncErr = ''; ghStatus('☁ 競合をマージして同期しました'); }
+    catch(e2){ syncErr = e2.message; ghStatus('⚠ 同期に失敗（' + e2.message + '）次回開いたときに再同期します'); }
   }
+  syncBusy = false; syncUi();
 }
 function markDirty(deck){
   if (!ghReady()) return;
+  dirtyDecks.add(deck); saveDirty(); syncUi();
   clearTimeout(pushTimers[deck]);
   pushTimers[deck] = setTimeout(() => pushDeck(deck), 1200);
 }
 async function syncPullAll(){
-  if (!ghReady()){ ghStatus('未設定：ローカル保存のみで動作中'); return; }
+  if (!ghReady()){ ghStatus('未設定：ローカル保存のみで動作中'); syncUi(); return; }
+  syncBusy = true; syncUi(); lastPull = Date.now();
   ghStatus('☁ 同期中…');
   let ok = true, missing = 0, lastErr = '';
   for (const deck of ['en', 'cn']){
@@ -385,9 +404,11 @@ async function syncPullAll(){
     catch(e){ ok = false; lastErr = e.message; }
   }
   save();
-  if (!ok) ghStatus('⚠ 同期失敗（' + lastErr + '）');
-  else if (missing) ghStatus('⚠ 単語データが見つかりません（トークンの対象リポジトリが vocab-data か確認してね）');
-  else ghStatus('☁ 同期完了 ' + new Date().toLocaleTimeString());
+  syncBusy = false;
+  if (!ok){ syncErr = lastErr; ghStatus('⚠ 同期失敗（' + lastErr + '）'); }
+  else if (missing){ syncErr = 'データ未検出'; ghStatus('⚠ 単語データが見つかりません（トークンの対象リポジトリが vocab-data か確認してね）'); }
+  else { syncErr = ''; ghStatus('☁ 同期完了 ' + new Date().toLocaleTimeString()); }
+  syncUi();
 }
 function fillGhForm(){
   if (!ghCfg) return;
@@ -402,8 +423,22 @@ $('ghSave').addEventListener('click', async () => {
 });
 $('ghSyncNow').addEventListener('click', async () => { await syncPullAll(); await pushDeck('en'); await pushDeck('cn'); if (mode === 'list') renderList(); current = null; nextCard(); });
 fillGhForm();
+syncUi();
 
-(async () => { await syncPullAll(); nextCard(); })();
+$('syncPill').addEventListener('click', async () => {
+  if (!ghReady()){ document.querySelector('[data-mode="list"]').click(); setTimeout(() => $('ghForm').scrollIntoView({behavior:'smooth'}), 80); return; }
+  await syncPullAll(); await pushDeck('en'); await pushDeck('cn');
+  if (mode === 'list') renderList(); else { current = null; nextCard(); }
+});
+$('fabAdd').addEventListener('click', () => {
+  if (mode === 'en' || mode === 'cn') listDeck = mode;
+  if (mode !== 'list') document.querySelector('[data-mode="list"]').click(); else renderList();
+  setTimeout(() => { $('addForm').scrollIntoView({behavior:'smooth', block:'center'}); try { $('fWord').focus({preventScroll:true}); } catch(e){} }, 90);
+});
+document.addEventListener('visibilitychange', () => { if (!document.hidden && ghReady() && Date.now() - lastPull > 60000) syncPullAll(); });
+window.addEventListener('online', () => { [...dirtyDecks].forEach(d => pushDeck(d)); });
+
+(async () => { await syncPullAll(); for (const d of [...dirtyDecks]) await pushDeck(d); nextCard(); syncUi(); })();
 </script>
 </body>
 </html>

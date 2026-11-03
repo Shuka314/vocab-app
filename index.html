@@ -448,19 +448,44 @@ $('resetBtn').addEventListener('click', async () => { if (!confirm('GitHub上の
 
 
 // ===== 音声再生 =====
+let ttsAudio = null;
+function speakViaWeb(text, lang){
+  try {
+    if (ttsAudio){ try { ttsAudio.pause(); } catch(e){} ttsAudio = null; }
+    const url = 'https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=' + encodeURIComponent(lang) + '&q=' + encodeURIComponent(text.slice(0, 200));
+    ttsAudio = new Audio(url);
+    const pr = ttsAudio.play();
+    if (pr && pr.catch) pr.catch(() => alert('音声を再生できませんでした'));
+  } catch(e){ alert('音声を再生できませんでした'); }
+}
 function speak(text, deck){
   text = (text || '').trim();
-  if (!text || !('speechSynthesis' in window)) return;
+  if (!text) return;
+  const lang = deck === 'cn' ? 'zh-CN' : 'en-US';
+  if (!('speechSynthesis' in window)){ speakViaWeb(text, lang); return; }
+  const synth = speechSynthesis;
+  const doSpeak = () => {
+    try {
+      const u = new SpeechSynthesisUtterance(text);
+      const vs = synth.getVoices() || [];
+      const v = vs.find(v => (v.lang || '').toLowerCase().startsWith(deck === 'cn' ? 'zh' : 'en'));
+      if (v){ u.voice = v; u.lang = v.lang; } else { u.lang = lang; }
+      u.rate = 0.92;
+      let started = false, settled = false;
+      u.onstart = () => { started = true; };
+      u.onend = () => { settled = true; };
+      u.onerror = () => { if (!settled){ settled = true; speakViaWeb(text, lang); } };
+      synth.speak(u);
+      setTimeout(() => {
+        if (!started && !settled){ settled = true; try { synth.cancel(); } catch(e){} speakViaWeb(text, lang); }
+      }, 900);
+    } catch(e){ speakViaWeb(text, lang); }
+  };
   try {
-    speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(text);
-    u.lang = deck === 'cn' ? 'zh-CN' : 'en-US';
-    const vs = speechSynthesis.getVoices() || [];
-    const v = vs.find(v => (v.lang || '').toLowerCase().startsWith(deck === 'cn' ? 'zh' : 'en'));
-    if (v) u.voice = v;
-    u.rate = 0.92;
-    speechSynthesis.speak(u);
-  } catch(e){}
+    if (synth.speaking || synth.pending){ synth.cancel(); setTimeout(doSpeak, 90); }
+    else doSpeak();
+    if (synth.paused) synth.resume();
+  } catch(e){ speakViaWeb(text, lang); }
 }
 if ('speechSynthesis' in window){ try { speechSynthesis.getVoices(); } catch(e){} }
 function updateSpeakBtns(){

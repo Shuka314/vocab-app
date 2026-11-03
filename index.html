@@ -344,6 +344,20 @@ function syncUi(){
 }
 function ghReady(){ return !!(ghCfg && ghCfg.owner && ghCfg.repo && ghCfg.token); }
 function ghSaveSha(){ try { localStorage.setItem('vocabGhSha', JSON.stringify(ghSha)); } catch(e){} }
+let syncedKeys = {}; try { syncedKeys = JSON.parse(localStorage.getItem('vocabSynced') || '{}'); } catch(e){}
+function saveSynced(){ try { localStorage.setItem('vocabSynced', JSON.stringify(syncedKeys)); } catch(e){} }
+const wordKey = it => String(it.word || '').toLowerCase();
+function mergePull(deck, remoteItems){
+  let local = data[deck];
+  const base = syncedKeys[deck];
+  if (Array.isArray(base) && !dirtyDecks.has(deck)){
+    const bset = new Set(base); const rkeys = new Set(remoteItems.map(wordKey));
+    local = local.filter(it => { const k = wordKey(it); return rkeys.has(k) || !bset.has(k); });
+  }
+  const merged = mergeVocab(local, remoteItems);
+  syncedKeys[deck] = merged.map(wordKey); saveSynced();
+  return merged;
+}
 function b64enc(str){ return btoa(unescape(encodeURIComponent(str))); }
 function b64dec(b64){ return decodeURIComponent(escape(atob(b64.replace(/\s/g, '')))); }
 async function ghApi(method, file, payload){
@@ -382,9 +396,9 @@ function mergeVocab(localItems, remoteItems){
 async function pushDeck(deck){
   if (!ghReady()) return;
   syncBusy = true; syncUi();
-  try { await ghPushDeck(deck, data[deck]); dirtyDecks.delete(deck); saveDirty(); syncErr = ''; ghStatus('☁ 同期済み ' + new Date().toLocaleTimeString()); }
+  try { await ghPushDeck(deck, data[deck]); dirtyDecks.delete(deck); saveDirty(); syncedKeys[deck] = data[deck].map(wordKey); saveSynced(); syncErr = ''; ghStatus('☁ 同期済み ' + new Date().toLocaleTimeString()); }
   catch(e){
-    try { const remote = await ghFetchDeck(deck); if (remote) data[deck] = mergeVocab(data[deck], remote); save(); await ghPushDeck(deck, data[deck]); dirtyDecks.delete(deck); saveDirty(); syncErr = ''; ghStatus('☁ 競合をマージして同期しました'); }
+    try { const remote = await ghFetchDeck(deck); if (remote) data[deck] = mergeVocab(data[deck], remote); save(); await ghPushDeck(deck, data[deck]); dirtyDecks.delete(deck); saveDirty(); syncedKeys[deck] = data[deck].map(wordKey); saveSynced(); syncErr = ''; ghStatus('☁ 競合をマージして同期しました'); }
     catch(e2){ syncErr = e2.message; ghStatus('⚠ 同期に失敗（' + e2.message + '）次回開いたときに再同期します'); }
   }
   syncBusy = false; syncUi();
@@ -401,7 +415,7 @@ async function syncPullAll(){
   ghStatus('☁ 同期中…');
   let ok = true, missing = 0, lastErr = '';
   for (const deck of ['en', 'cn']){
-    try { const remote = await ghFetchDeck(deck); if (remote){ data[deck] = mergeVocab(data[deck], remote); } else missing++; }
+    try { const remote = await ghFetchDeck(deck); if (remote){ data[deck] = mergePull(deck, remote); } else missing++; }
     catch(e){ ok = false; lastErr = e.message; }
   }
   save();

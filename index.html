@@ -49,6 +49,13 @@ form.add{display:flex;flex-direction:column;gap:8px;background:var(--card);borde
 form.add button{background:var(--input);color:var(--accent);border:1px solid var(--border);border-radius:10px;padding:12px;font-size:15px;font-weight:800}
 .note{font-size:12px;color:var(--muted);line-height:1.6}
 .danger{color:var(--warning)!important}
+.ret{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:10px 12px}
+.ret .rt{font-size:12px;font-weight:700;color:var(--muted);margin-bottom:6px}
+.ret .rr{display:flex;align-items:center;gap:8px;font-size:12px;margin:3px 0}
+.ret .rl{width:86px;color:var(--muted);flex:none}
+.ret .rb{flex:1;background:var(--input);border-radius:6px;height:10px;overflow:hidden}
+.ret .rf{height:100%;background:var(--accent)}
+.ret .rc{width:44px;text-align:right;color:var(--accent);font-weight:700;flex:none}
 .pill{border:1px solid var(--border);background:var(--card);color:var(--accent);border-radius:999px;padding:7px 12px;font-size:13px;font-weight:700;cursor:pointer}
 .fab{position:fixed;right:18px;bottom:calc(22px + env(safe-area-inset-bottom));width:58px;height:58px;border-radius:50%;font-size:30px;line-height:1;background:var(--accent);color:#141414;border:none;box-shadow:0 4px 14px rgba(0,0,0,.45);z-index:50;cursor:pointer}
 </style>
@@ -95,9 +102,12 @@ form.add button{background:var(--input);color:var(--accent);border:1px solid var
 
   <section id="listView" class="view">
     <input id="search" type="search" placeholder="🔍 検索（単語・意味・例文）">
+    <div class="ret" id="retention"></div>
     <div class="row">
       <button id="deckEn">英語の単語</button>
       <button id="deckCn">中国語の単語</button>
+      <button id="leechFilter">⚠ 苦手だけ表示</button>
+      <button id="leechStudy">⚠ 苦手だけ学習</button>
     </div>
     <div class="list" id="list"></div>
     <form class="add" id="addForm">
@@ -118,7 +128,7 @@ form.add button{background:var(--input);color:var(--accent);border:1px solid var
     </div>
 
     <form class="add" id="ghForm">
-      <b>☁ GitHub同期</b> <span class="note">同期方式 v3.1</span>
+      <b>☁ GitHub同期</b> <span class="note">同期方式 v3.1 ／ 機能 v4（穴埋め・苦手・定着度）</span>
       <input id="ghOwner" placeholder="GitHubユーザー名（owner）">
       <input id="ghRepo" placeholder="リポジトリ名（Private）">
       <input id="ghToken" type="password" placeholder="トークン（Contents: Read and write）">
@@ -153,11 +163,20 @@ let timerId = null, timeLeft = 30;
 const $ = id => document.getElementById(id);
 const decks = () => mode === 'mix' ? ['en','cn'] : [mode];
 function dueItems(){
+  if (leechMode){
+    let out = [];
+    ['en','cn'].forEach(dk => data[dk].forEach(it => { if ((it.lapses || 0) >= LEECH_MIN) out.push({deck: dk, item: it}); }));
+    return out;
+  }
   const t = todayStr(); let out = [];
   decks().forEach(dk => data[dk].forEach(it => { if ((it.next_review || t) <= t) out.push({deck: dk, item: it}); }));
   return out;
 }
 function statsText(){
+  if (leechMode){
+    let n = 0; ['en','cn'].forEach(dk => data[dk].forEach(it => { if ((it.lapses || 0) >= LEECH_MIN) n++; }));
+    return '⚠ 苦手ドリル（難しい×' + LEECH_MIN + '以上）: ' + n + '件';
+  }
   const t = todayStr();
   let due = 0, total = 0;
   decks().forEach(dk => { total += data[dk].length; due += data[dk].filter(it => (it.next_review || t) <= t).length; });
@@ -177,7 +196,13 @@ function nextCard(){
   const due = dueItems();
   const totalAll = data.en.length + data.cn.length;
   if (!due.length){
-    current = null;
+    current = null; currentCloze = null; $('word').style.fontSize = '';
+    if (leechMode){
+      $('badge').textContent = ''; $('word').textContent = '🎉 苦手単語はありません';
+      $('reading').textContent = ''; $('meaning').textContent = ''; $('example').textContent = '';
+      $('hint').textContent = '「難しい」が' + LEECH_MIN + '回以上の単語がここに出ます。';
+      setGrades(false); $('stats').textContent = statsText(); stopTimer(); return;
+    }
     if (totalAll === 0){
       $('badge').textContent = ''; $('word').textContent = '単語がありません';
       $('reading').textContent = ''; $('meaning').textContent = ''; $('example').textContent = '';
@@ -193,10 +218,21 @@ function nextCard(){
     if (current && due.length > 1) pool = due.filter(x => x.item !== current.item);
     current = pool[Math.floor(Math.random() * pool.length)];
     const it = current.item;
-    $('badge').textContent = mode === 'mix' ? ('📂 [' + (current.deck === 'en' ? '英語' : '中国語') + ']') : '';
-    $('word').textContent = it.word;
-    $('reading').textContent = ''; $('meaning').textContent = ''; $('example').textContent = '';
-    $('hint').textContent = 'タップで意味を表示';
+    currentCloze = makeCloze(it, current.deck);
+    const mixLabel = mode === 'mix' || leechMode ? ('📂 [' + (current.deck === 'en' ? '英語' : '中国語') + ']') : '';
+    if (currentCloze){
+      $('badge').textContent = (leechMode ? '⚠ 苦手 ' : '') + '🕳 穴埋め ' + mixLabel;
+      $('word').textContent = currentCloze;
+      $('word').style.fontSize = '23px';
+      $('reading').textContent = ''; $('meaning').textContent = it.meaning || ''; $('example').textContent = '';
+      $('hint').textContent = '意味と文から思い出して、タップで答え合わせ';
+    } else {
+      $('badge').textContent = (leechMode ? '⚠ 苦手 ' : '') + mixLabel;
+      $('word').textContent = it.word;
+      $('word').style.fontSize = '';
+      $('reading').textContent = ''; $('meaning').textContent = ''; $('example').textContent = '';
+      $('hint').textContent = 'タップで意味を表示';
+    }
     setGrades(true);
     if ($('timerChk').checked) startTimer();
   }
@@ -206,6 +242,16 @@ function setGrades(on){ ['btnHard','btnNormal','btnEasy'].forEach(id => $(id).di
 function toggle(){
   if (!current) return;
   shown = !shown; const it = current.item;
+  if (shown && currentCloze){
+    $('word').textContent = it.word; $('word').style.fontSize = '';
+    $('reading').textContent = (current.deck === 'cn' && it.reading) ? it.reading : '';
+    $('meaning').textContent = it.meaning || '';
+    let ex = '';
+    if (it.example){ ex = 'Ex) ' + it.example; if (current.deck === 'cn' && it.example_reading) ex += '\n' + it.example_reading; }
+    $('example').textContent = ex;
+    $('hint').textContent = '';
+    return;
+  }
   if (shown){
     $('reading').textContent = (current.deck === 'cn' && it.reading) ? it.reading : '';
     $('meaning').textContent = it.meaning || '';
@@ -214,15 +260,21 @@ function toggle(){
     $('example').textContent = ex;
     $('hint').textContent = '';
   } else {
-    $('reading').textContent = ''; $('meaning').textContent = ''; $('example').textContent = '';
-    $('hint').textContent = 'タップで意味を表示';
+    if (currentCloze){
+      $('word').textContent = currentCloze; $('word').style.fontSize = '23px';
+      $('reading').textContent = ''; $('meaning').textContent = it.meaning || ''; $('example').textContent = '';
+      $('hint').textContent = '意味と文から思い出して、タップで答え合わせ';
+    } else {
+      $('reading').textContent = ''; $('meaning').textContent = ''; $('example').textContent = '';
+      $('hint').textContent = 'タップで意味を表示';
+    }
   }
 }
 function grade(kind){
   if (!current) return;
   stopTimer();
   const it = current.item; const cur = it.interval || 0;
-  if (kind === 'hard'){ it.interval = 0; it.next_review = todayStr(); }
+  if (kind === 'hard'){ it.lapses = (it.lapses || 0) + 1; it.interval = cur <= 1 ? 0 : Math.floor(cur / 2); it.next_review = addDays(it.interval); }
   else if (kind === 'normal'){ const n = cur === 0 ? 1 : cur * 2; it.interval = n; it.next_review = addDays(n); }
   else { const n = cur === 0 ? 3 : cur * 4; it.interval = n; it.next_review = addDays(n); }
   save(); markDirty(current.deck); nextCard();
@@ -236,15 +288,28 @@ $('themeSel').addEventListener('change', e => { document.body.className = e.targ
 try { const th = localStorage.getItem('vocabTheme'); if (th !== null){ document.body.className = th; $('themeSel').value = th; } } catch(e){}
 
 document.querySelectorAll('.tabs button').forEach(b => b.addEventListener('click', () => {
+  leechMode = false;
   document.querySelectorAll('.tabs button').forEach(x => x.classList.remove('on'));
   b.classList.add('on'); mode = b.dataset.mode;
   if (mode === 'list'){ $('studyView').classList.remove('on'); $('listView').classList.add('on'); renderList(); }
   else { $('listView').classList.remove('on'); $('studyView').classList.add('on'); current = null; nextCard(); }
 }));
 
+function renderRetention(){
+  const items = data[listDeck];
+  const buckets = [ ['今日・これから', 0, 0], ['1〜3日', 1, 3], ['4〜7日', 4, 7], ['8〜30日', 8, 30], ['31日〜（定着）', 31, 1e9] ];
+  const counts = buckets.map(([ , lo, hi]) => items.filter(it => { const v = it.interval || 0; return v >= lo && v <= hi; }).length);
+  const max = Math.max(1, ...counts);
+  $('retention').innerHTML = '<div class="rt">📊 定着度（' + (listDeck === 'en' ? '英語' : '中国語') + '・復習間隔の分布）</div>' + buckets.map((b, i) =>
+    '<div class="rr"><div class="rl">' + b[0] + '</div><div class="rb"><div class="rf" style="width:' + Math.round(counts[i] * 100 / max) + '%"></div></div><div class="rc">' + counts[i] + '語</div></div>').join('');
+}
 function renderList(){
+  renderRetention();
   const q = $('search').value.trim().toLowerCase();
   const items = data[listDeck];
+  let leechN = 0; ['en','cn'].forEach(dk => data[dk].forEach(it => { if ((it.lapses || 0) >= LEECH_MIN) leechN++; }));
+  $('leechStudy').textContent = '⚠ 苦手だけ学習（' + leechN + '）';
+  $('leechFilter').textContent = leechFilterOn ? '⚠ 苦手だけ表示中（解除）' : '⚠ 苦手だけ表示';
   $('addTitle').textContent = '＋ 単語を追加（' + (listDeck === 'en' ? '英語' : '中国語') + '）';
   $('fReading').style.display = listDeck === 'cn' ? '' : 'none';
   $('fExReading').style.display = listDeck === 'cn' ? '' : 'none';
@@ -253,13 +318,18 @@ function renderList(){
   items.forEach((it, idx) => {
     const hay = (it.word + ' ' + (it.reading||'') + ' ' + it.meaning + ' ' + (it.example||'') + ' ' + (it.example_reading||'')).toLowerCase();
     if (q && !hay.includes(q)) return;
+    if (leechFilterOn && (it.lapses || 0) < LEECH_MIN) return;
     shown++;
     const div = document.createElement('div'); div.className = 'item';
     const sub = [it.reading, it.meaning].filter(Boolean).join('　');
     div.innerHTML = '<b></b><div class="sub"></div><div class="meta"></div>';
     div.querySelector('b').textContent = it.word;
     div.querySelector('.sub').textContent = sub + (it.example ? '\nEx) ' + it.example : '');
-    div.querySelector('.meta').textContent = '間隔 ' + (it.interval || 0) + '日 ／ 次回 ' + (it.next_review || '');
+    const badges = [];
+    if (makeCloze(it, listDeck)) badges.push('🕳穴埋め可');
+    if ((it.lapses || 0) >= LEECH_MIN) badges.push('⚠苦手');
+    if ((it.lapses || 0) > 0) badges.push('難しい×' + it.lapses);
+    div.querySelector('.meta').textContent = (badges.length ? badges.join(' ') + ' ／ ' : '') + '間隔 ' + (it.interval || 0) + '日 ／ 次回 ' + (it.next_review || '');
     div.addEventListener('click', () => editItem(idx));
     let pressTimer = null;
     div.addEventListener('touchstart', () => { pressTimer = setTimeout(() => { if (confirm('「' + it.word + '」を削除しますか？')){ items.splice(idx,1); save(); markDirty(listDeck); renderList(); } }, 700); }, {passive:true});
@@ -272,6 +342,13 @@ function renderList(){
 $('search').addEventListener('input', renderList);
 $('deckEn').addEventListener('click', () => { listDeck = 'en'; renderList(); });
 $('deckCn').addEventListener('click', () => { listDeck = 'cn'; renderList(); });
+$('leechFilter').addEventListener('click', () => { leechFilterOn = !leechFilterOn; renderList(); });
+$('leechStudy').addEventListener('click', () => {
+  leechMode = true;
+  document.querySelectorAll('.tabs button').forEach(x => x.classList.remove('on'));
+  $('listView').classList.remove('on'); $('studyView').classList.add('on');
+  current = null; nextCard();
+});
 
 function editItem(idx){
   const it = data[listDeck][idx];
@@ -293,10 +370,13 @@ $('addForm').addEventListener('submit', e => {
   if (!w || !m) return;
   const arr = data[listDeck]; const t = todayStr();
   const ex = $('fExample').value.trim();
+  if (ex && !makeCloze({ word: w, example: ex }, listDeck)){
+    if (!confirm('例文に対象語が含まれていないため、この単語は穴埋め問題になりません。このまま追加しますか？')) return;
+  }
   const found = arr.find(x => x.word.toLowerCase() === w.toLowerCase());
   if (found){ found.meaning = m; found.example = ex; if (listDeck === 'cn'){ found.reading = $('fReading').value.trim(); found.example_reading = $('fExReading').value.trim(); } found.interval = 0; found.next_review = t; }
   else {
-    const ni = { word: w, meaning: m, example: ex, interval: 0, next_review: t };
+    const ni = { word: w, meaning: m, example: ex, interval: 0, next_review: t, lapses: 0 };
     if (listDeck === 'cn'){ ni.reading = $('fReading').value.trim(); ni.example_reading = $('fExReading').value.trim(); }
     arr.push(ni);
   }
@@ -325,6 +405,46 @@ $('impJson').addEventListener('change', e => {
 $('resetBtn').addEventListener('click', async () => { if (!confirm('GitHub上の内容で上書きします。この端末だけにある未送信の変更は消えます。よろしいですか？')) return; await forcePullAll(); renderList(); current = null; nextCard(); alert('GitHubから再取得しました'); });
 
 
+// ===== 穴埋め＆苦手 =====
+const LEECH_MIN = 3;
+let leechMode = false, leechFilterOn = false, currentCloze = null;
+const CLOZE_STRIP = /^[\s（）()、，,。．？！?!…·—「」『』“”"'：:；;・]+|[\s（）()、，,。．？！?!…·—「」『』“”"'：:；;・]+$/g;
+function clozeParts(word){
+  const segs = String(word || '').split('~');
+  const parts = [];
+  for (const seg of segs){
+    const opt = /^\s*[（(]/.test(seg) && /[）)]\s*$/.test(seg);
+    const core = seg.replace(CLOZE_STRIP, '');
+    if (core) parts.push({ text: core, optional: opt });
+  }
+  return parts;
+}
+function makeCloze(item, deck){
+  const ex = item.example || '';
+  if (!ex) return null;
+  const word = String(item.word || '');
+  const parts = clozeParts(word);
+  if (!parts.length) return null;
+  const hay = deck === 'en' ? ex.toLowerCase() : ex;
+  const needle = t => deck === 'en' ? t.toLowerCase() : t;
+  if (!word.includes('~') && parts.length === 1){
+    const p = needle(parts[0].text);
+    if (!hay.includes(p)) return null;
+    let out = '', idx = 0, hit = 0;
+    while (true){ const i = hay.indexOf(p, idx); if (i < 0) break; out += ex.slice(idx, i) + '＿＿'; idx = i + p.length; hit++; }
+    return hit ? out + ex.slice(idx) : null;
+  }
+  let out = '', last = 0, pos = 0, hit = 0;
+  for (const part of parts){
+    const p = needle(part.text);
+    const i = hay.indexOf(p, pos);
+    if (i < 0){ if (part.optional) continue; return null; }
+    out += ex.slice(last, i) + '＿＿';
+    last = i + p.length; pos = last; hit++;
+  }
+  return hit ? out + ex.slice(last) : null;
+}
+
 // ===== GitHub sync (base-snapshot方式) =====
 // ルール: 起動時 = GitHubと「前回同期した状態(base)」を比べて3方向判定。
 //   GitHubが新しい & 自分が未変更 → GitHubを取り込む（削除も反映）
@@ -341,7 +461,7 @@ function b64dec(b64){ return decodeURIComponent(escape(atob(b64.replace(/\s/g, '
 
 let ghBase = {}; try { ghBase = JSON.parse(localStorage.getItem('vocabGhBaseV3') || '{}'); } catch(e){}
 function saveBase(){ try { localStorage.setItem('vocabGhBaseV3', JSON.stringify(ghBase)); } catch(e){} }
-const SYNC_FIELDS = ['word','meaning','example','interval','next_review','reading','example_reading'];
+const SYNC_FIELDS = ['word','meaning','example','interval','next_review','reading','example_reading','lapses'];
 function canon(items){
   const norm = (items || []).map(it => { const o = {}; SYNC_FIELDS.forEach(f => { o[f] = (it[f] === undefined ? (f === 'interval' ? 0 : '') : it[f]); }); return o; });
   norm.sort((a, b) => { const x = String(a.word).toLowerCase(), y = String(b.word).toLowerCase(); return x < y ? -1 : (x > y ? 1 : 0); });

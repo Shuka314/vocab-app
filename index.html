@@ -579,8 +579,8 @@ function updateSpeakBtns(){
   const w = $('speakWord'), x = $('speakEx');
   if (!w || !x) return;
   if (!current){ w.style.display = 'none'; x.style.display = 'none'; return; }
-  w.style.display = (!currentCloze || shown) ? '' : 'none';
-  x.style.display = (shown && current.item.example) ? '' : 'none';
+  w.style.display = '';
+  x.style.display = current.item.example ? '' : 'none';
 }
 $('speakWord').addEventListener('click', () => {
   if (!current) return;

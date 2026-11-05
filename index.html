@@ -63,6 +63,9 @@ form.add button{background:var(--input);color:var(--accent);border:1px solid var
 .modal-card form.add{box-shadow:0 8px 30px rgba(0,0,0,.5)}
 .modal-x{position:absolute;top:4px;right:10px;background:none;border:none;color:var(--muted);font-size:26px;line-height:1;cursor:pointer;z-index:2;padding:6px}
 .speak-row{display:flex;gap:8px}
+.split-row{display:flex;gap:6px;align-items:center}
+.split-row input{flex:1;min-width:0}
+.tilde-sep{color:var(--muted);font-weight:700;padding:0 2px}
 .speak-row button{flex:1;padding:10px;border-radius:10px;border:1px solid var(--border);background:var(--card);color:var(--accent);font-size:14px;font-weight:700;cursor:pointer}
 .fab{position:fixed;right:18px;bottom:calc(22px + env(safe-area-inset-bottom));width:58px;height:58px;border-radius:50%;font-size:30px;line-height:1;background:var(--accent);color:#141414;border:none;box-shadow:0 4px 14px rgba(0,0,0,.45);z-index:50;cursor:pointer}
 </style>
@@ -149,8 +152,16 @@ form.add button{background:var(--input);color:var(--accent);border:1px solid var
     <button id="addClose" class="modal-x" aria-label="閉じる">×</button>
     <form class="add" id="addForm">
       <b id="addTitle">＋ 単語を追加</b>
-      <input id="fWord" placeholder="単語" required>
-      <input id="fReading" placeholder="ピンイン（中国語のみ）">
+      <div class="split-row">
+        <input id="fWordL" placeholder="単語" required>
+        <span class="tilde-sep">~</span>
+        <input id="fWordR" placeholder="後半（フレーズ用）">
+      </div>
+      <div class="split-row" id="fReadingRow">
+        <input id="fReadingL" placeholder="ピンイン（中国語のみ）">
+        <span class="tilde-sep">~</span>
+        <input id="fReadingR" placeholder="後半ピンイン">
+      </div>
       <input id="fMeaning" placeholder="意味" required>
       <input id="fExample" placeholder="例文">
       <input id="fExReading" placeholder="例文ピンイン（中国語のみ）">
@@ -339,7 +350,7 @@ function renderList(){
   $('leechStudy').textContent = '⚠ 苦手だけ学習（' + leechN + '）';
   $('leechFilter').textContent = leechFilterOn ? '⚠ 苦手だけ表示中（解除）' : '⚠ 苦手だけ表示';
   $('addTitle').textContent = '＋ 単語を追加（' + (listDeck === 'en' ? '英語' : '中国語') + '）';
-  $('fReading').style.display = listDeck === 'cn' ? '' : 'none';
+  $('fReadingRow').style.display = listDeck === 'cn' ? '' : 'none';
   $('fExReading').style.display = listDeck === 'cn' ? '' : 'none';
   const frag = document.createDocumentFragment();
   let shown = 0;
@@ -392,9 +403,12 @@ function editItem(idx){
   if (listDeck === 'cn'){ it.reading = r.trim(); it.example_reading = exr.trim(); }
   save(); markDirty(listDeck); renderList();
 }
+function joinTilde(l, r){ l = (l || '').trim(); r = (r || '').trim(); return r ? l + '~' + r : l; }
+const wordFromForm = () => joinTilde($('fWordL').value, $('fWordR').value);
+const readingFromForm = () => joinTilde($('fReadingL').value, $('fReadingR').value);
 $('addForm').addEventListener('submit', e => {
   e.preventDefault();
-  const w = $('fWord').value.trim(), m = $('fMeaning').value.trim();
+  const w = wordFromForm(), m = $('fMeaning').value.trim();
   if (!w || !m) return;
   const arr = data[listDeck]; const t = todayStr();
   const ex = $('fExample').value.trim();
@@ -402,10 +416,10 @@ $('addForm').addEventListener('submit', e => {
     if (!confirm('例文に対象語が含まれていないため、この単語は穴埋め問題になりません。このまま追加しますか？')) return;
   }
   const found = arr.find(x => x.word.toLowerCase() === w.toLowerCase());
-  if (found){ found.meaning = m; found.example = ex; if (listDeck === 'cn'){ found.reading = $('fReading').value.trim(); found.example_reading = $('fExReading').value.trim(); } found.interval = 0; found.next_review = t; }
+  if (found){ found.meaning = m; found.example = ex; if (listDeck === 'cn'){ found.reading = readingFromForm(); found.example_reading = $('fExReading').value.trim(); } found.interval = 0; found.next_review = t; }
   else {
     const ni = { word: w, meaning: m, example: ex, interval: 0, next_review: t, lapses: 0 };
-    if (listDeck === 'cn'){ ni.reading = $('fReading').value.trim(); ni.example_reading = $('fExReading').value.trim(); }
+    if (listDeck === 'cn'){ ni.reading = readingFromForm(); ni.example_reading = $('fExReading').value.trim(); }
     arr.push(ni);
   }
   save(); markDirty(listDeck); e.target.reset(); renderList(); closeAddModal(); alert('追加しました（自動でGitHubに同期されます）');
@@ -423,14 +437,24 @@ function toPinyin(text, isWord){
   } catch(e){ return ''; }
 }
 let pyTimerW = null, pyTimerE = null;
-$('fWord').addEventListener('input', () => {
-  if (listDeck !== 'cn') return;
-  clearTimeout(pyTimerW);
-  pyTimerW = setTimeout(() => {
-    const py = toPinyin($('fWord').value.trim(), true);
-    if (py && ($('fReading').value === '' || $('fReading').value === lastAutoReading)){ $('fReading').value = py; lastAutoReading = py; }
-  }, 250);
-});
+let pyTimerWL = null, pyTimerWR = null;
+function bindPartPinyin(wordId, readingId, which){
+  $(wordId).addEventListener('input', () => {
+    if (listDeck !== 'cn') return;
+    if (which === 'L') clearTimeout(pyTimerWL); else clearTimeout(pyTimerWR);
+    const t = setTimeout(() => {
+      const py = toPinyin($(wordId).value.trim(), true);
+      const last = which === 'L' ? lastAutoReadingL : lastAutoReadingR;
+      if (py && ($(readingId).value === '' || $(readingId).value === last)){
+        $(readingId).value = py;
+        if (which === 'L') lastAutoReadingL = py; else lastAutoReadingR = py;
+      }
+    }, 250);
+    if (which === 'L') pyTimerWL = t; else pyTimerWR = t;
+  });
+}
+bindPartPinyin('fWordL', 'fReadingL', 'L');
+bindPartPinyin('fWordR', 'fReadingR', 'R');
 $('fExample').addEventListener('input', () => {
   if (listDeck !== 'cn') return;
   clearTimeout(pyTimerE);
@@ -845,15 +869,15 @@ $('syncPill').addEventListener('click', async () => {
   await syncPullAll();
   if (mode === 'list') renderList(); else { current = null; nextCard(); }
 });
-let lastAutoReading = '', lastAutoExReading = '';
+let lastAutoReadingL = '', lastAutoReadingR = '', lastAutoExReading = '';
 function openAddModal(){
   if (mode === 'en' || mode === 'cn') listDeck = mode;
-  lastAutoReading = ''; lastAutoExReading = '';
-  $('fReading').style.display = listDeck === 'cn' ? '' : 'none';
+  lastAutoReadingL = ''; lastAutoReadingR = ''; lastAutoExReading = '';
+  $('fReadingRow').style.display = listDeck === 'cn' ? '' : 'none';
   $('fExReading').style.display = listDeck === 'cn' ? '' : 'none';
   $('addTitle').textContent = '＋ 単語を追加（' + (listDeck === 'en' ? '英語' : '中国語') + '）';
   $('addModal').classList.add('on');
-  setTimeout(() => { try { $('fWord').focus({preventScroll:true}); } catch(e){} }, 60);
+  setTimeout(() => { try { $('fWordL').focus({preventScroll:true}); } catch(e){} }, 60);
 }
 function closeAddModal(){ $('addModal').classList.remove('on'); }
 $('fabAdd').addEventListener('click', openAddModal);

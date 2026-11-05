@@ -755,17 +755,44 @@ function markDirty(deck){
   pushTimers[deck] = setTimeout(() => pushDeck(deck), 1200);
 }
 
+function progressRegressions(items, remoteItems){
+  const key = it => String(it.word || '').toLowerCase();
+  const score = it => [it.interval || 0, String(it.next_review || '')];
+  const map = {}; items.forEach(it => map[key(it)] = it);
+  const bad = [];
+  remoteItems.forEach(r => { const l = map[key(r)]; if (!l) return; const a = score(l), b = score(r);
+    if (a[0] < b[0] || (a[0] === b[0] && a[1] < b[1])) bad.push(r.word); });
+  return bad;
+}
+
 async function pushDeck(deck, shaOverride){
   if (!ghReady()) return;
   const file = GH_FILES[deck];
   const base = ghBase[deck];
-  const sha = shaOverride !== undefined ? shaOverride : (base ? base.sha : undefined);
+  let sha = shaOverride !== undefined ? shaOverride : (base ? base.sha : undefined);
   syncBusy = true; syncUi();
   try {
-    const newSha = await ghPut(file, data[deck], sha);
-    ghBase[deck] = { sha: newSha, items: JSON.parse(JSON.stringify(data[deck])) };
+    // 新鮮さゲート（進捗リグレッション防止）: 送信直前にGitHubの現状を取り直す。
+    // 前回同期(base)からGitHubが動いていたら、そのまま上書きせず進捗優先マージしてから送る。
+    let itemsToPush = data[deck];
+    let gateMerged = false;
+    const remote = await ghGet(file);
+    if (remote){
+      if (!base || remote.sha !== base.sha){
+        if (!sameItems(remote.items, itemsToPush)){
+          itemsToPush = mergeVocab(itemsToPush, remote.items);
+          gateMerged = true;
+        }
+        sha = remote.sha;
+      }
+      const bad = progressRegressions(itemsToPush, remote.items);
+      if (bad.length) throw new Error('進捗リグレッション防止のため送信を中止しました（' + bad.length + '語）');
+    }
+    const newSha = await ghPut(file, itemsToPush, sha);
+    if (gateMerged){ data[deck] = itemsToPush; save(); if (mode === 'list') renderList(); }
+    ghBase[deck] = { sha: newSha, items: JSON.parse(JSON.stringify(itemsToPush)) };
     saveBase(); syncErr = '';
-    ghStatus('☁ 同期済み ' + new Date().toLocaleTimeString());
+    ghStatus(gateMerged ? '☁ 競合をマージして同期しました' : '☁ 同期済み ' + new Date().toLocaleTimeString());
   } catch(e) {
     if (String(e.message).includes('409') || String(e.message).includes('422')) {
       try {

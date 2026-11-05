@@ -73,6 +73,7 @@ form.add button{background:var(--input);color:var(--accent);border:1px solid var
   <button id="syncPill" class="pill">☁ 未設定</button>
   <div class="row" style="align-items:center">
     <label class="chk"><input type="checkbox" id="timerChk" style="width:20px;height:20px"> ⏳30秒</label>
+    <label class="chk"><input type="checkbox" id="listenChk" style="width:20px;height:20px"> 🎧 聴き取り</label>
     <select id="themeSel">
       <option value="">🌙 モダンダーク</option>
       <option value="rpg">🌟 レトロRPG</option>
@@ -174,6 +175,8 @@ let mode = 'en';           // en | cn | mix | list
 let listDeck = 'en';
 let current = null;        // {deck, item}
 let shown = false;
+let listenMode = false;
+try { listenMode = localStorage.getItem('vocabListen') === '1'; } catch(e){}
 let timerId = null, timeLeft = 30;
 
 const $ = id => document.getElementById(id);
@@ -236,7 +239,9 @@ function nextCard(){
     const it = current.item;
     currentCloze = makeCloze(it, current.deck);
     const mixLabel = mode === 'mix' || leechMode ? ('📂 [' + (current.deck === 'en' ? '英語' : '中国語') + ']') : '';
-    if (currentCloze){
+    if (listenMode){
+      showListeningFront();
+    } else if (currentCloze){
       $('badge').textContent = (leechMode ? '⚠ 苦手 ' : '') + '🕳 穴埋め ' + mixLabel;
       $('word').textContent = currentCloze;
       $('word').style.fontSize = '23px';
@@ -254,12 +259,15 @@ function nextCard(){
   }
   $('stats').textContent = statsText();
   updateSpeakBtns();
+  autoSpeakListening();
 }
 function setGrades(on){ ['btnHard','btnNormal','btnEasy'].forEach(id => $(id).disabled = !on); }
 function toggle(){
   if (!current) return;
   setTimeout(updateSpeakBtns, 0);
   shown = !shown; const it = current.item;
+  if (!shown && listenMode){ showListeningFront(); return; }
+  if (shown && listenMode && !currentCloze){ $('word').textContent = it.word; $('word').style.fontSize = ''; }
   if (shown && currentCloze){
     $('word').textContent = it.word; $('word').style.fontSize = '';
     $('reading').textContent = (current.deck === 'cn' && it.reading) ? it.reading : '';
@@ -302,6 +310,8 @@ $('btnHard').addEventListener('click', () => grade('hard'));
 $('btnNormal').addEventListener('click', () => grade('normal'));
 $('btnEasy').addEventListener('click', () => grade('easy'));
 $('timerChk').addEventListener('change', e => { if (e.target.checked && current) startTimer(); else stopTimer(); });
+if (listenMode) $('listenChk').checked = true;
+$('listenChk').addEventListener('change', e => { listenMode = e.target.checked; try { localStorage.setItem('vocabListen', listenMode ? '1' : '0'); } catch(err){} if (current){ shown = true; toggle(); if (listenMode) autoSpeakListening(); } });
 $('themeSel').addEventListener('change', e => { document.body.className = e.target.value; try{ localStorage.setItem('vocabTheme', e.target.value); }catch(err){} });
 try { const th = localStorage.getItem('vocabTheme'); if (th !== null){ document.body.className = th; $('themeSel').value = th; } } catch(e){}
 
@@ -575,6 +585,20 @@ async function speak(text, deck){
   speakViaWeb(text, deck);
 }
 if ('speechSynthesis' in window){ try { speechSynthesis.getVoices(); } catch(e){} }
+function showListeningFront(){
+  const mixLabel = mode === 'mix' || leechMode ? ('📂 [' + (current.deck === 'en' ? '英語' : '中国語') + ']') : '';
+  $('badge').textContent = (leechMode ? '⚠ 苦手 ' : '') + '🎧 聴き取り ' + mixLabel;
+  $('word').textContent = '🎧'; $('word').style.fontSize = '';
+  $('reading').textContent = ''; $('meaning').textContent = ''; $('meaning').style.fontSize = ''; $('example').textContent = '';
+  $('hint').textContent = '音を聞いて意味を思い出してね（タップで答え合わせ）';
+}
+function autoSpeakListening(){
+  if (!listenMode || !current) return;
+  const it = current.item;
+  if (currentCloze && it.example){ speak(it.example, current.deck); return; }
+  const t = String(it.word || '');
+  speak(t.includes('~') ? (it.example || t.replace(/~/g, ' ')) : t, current.deck);
+}
 function updateSpeakBtns(){
   const w = $('speakWord'), x = $('speakEx');
   if (!w || !x) return;

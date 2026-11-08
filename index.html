@@ -765,48 +765,65 @@ function progressRegressions(items, remoteItems){
   return bad;
 }
 
+// 送信リトライ: 一時的な失敗（回線断・5xx・競合）は間隔を空けて自動で再試行する。
+// 再試行のたびに新鮮さゲート（再取得→進捗優先マージ→push）を最初から回すので、
+// 古いSHAでの盲目的な再PUTにはならない。
+const PUSH_RETRY_DELAYS = [2000, 5000, 15000];
+function sleepMs(ms){ return new Promise(r => setTimeout(r, ms)); }
+function retryableSyncErr(e){
+  const m = String((e && e.message) || e);
+  if (m.includes('進捗リグレッション')) return false; // 安全停止はリトライしない
+  const mm = m.match(/GitHub API (\d{3})/);
+  if (mm){ const s = parseInt(mm[1], 10); return s >= 500 || s === 409 || s === 422 || s === 429; }
+  return true; // fetch自体の失敗（ネットワークエラー等）は再試行する
+}
+
 async function pushDeck(deck, shaOverride){
   if (!ghReady()) return;
   const file = GH_FILES[deck];
-  const base = ghBase[deck];
-  let sha = shaOverride !== undefined ? shaOverride : (base ? base.sha : undefined);
   syncBusy = true; syncUi();
-  try {
-    // 新鮮さゲート（進捗リグレッション防止）: 送信直前にGitHubの現状を取り直す。
-    // 前回同期(base)からGitHubが動いていたら、そのまま上書きせず進捗優先マージしてから送る。
-    let itemsToPush = data[deck];
-    let gateMerged = false;
-    const remote = await ghGet(file);
-    if (remote){
-      if (!base || remote.sha !== base.sha){
-        if (!sameItems(remote.items, itemsToPush)){
-          itemsToPush = mergeVocab(itemsToPush, remote.items);
-          gateMerged = true;
+  let lastErr = null;
+  for (let attempt = 0; attempt <= PUSH_RETRY_DELAYS.length; attempt++){
+    const base = ghBase[deck];
+    // shaOverride は初回のみ使う（競合後の再試行ではゲートが取る最新のSHAを使う）
+    let sha = (attempt === 0 && shaOverride !== undefined) ? shaOverride : (base ? base.sha : undefined);
+    try {
+      // 新鮮さゲート（進捗リグレッション防止）: 送信直前にGitHubの現状を取り直す。
+      // 前回同期(base)からGitHubが動いていたら、そのまま上書きせず進捗優先マージしてから送る。
+      let itemsToPush = data[deck];
+      let gateMerged = false;
+      const remote = await ghGet(file);
+      if (remote){
+        if (!base || remote.sha !== base.sha){
+          if (!sameItems(remote.items, itemsToPush)){
+            itemsToPush = mergeVocab(itemsToPush, remote.items);
+            gateMerged = true;
+          }
+          sha = remote.sha;
         }
-        sha = remote.sha;
+        const bad = progressRegressions(itemsToPush, remote.items);
+        if (bad.length) throw new Error('進捗リグレッション防止のため送信を中止しました（' + bad.length + '語）');
       }
-      const bad = progressRegressions(itemsToPush, remote.items);
-      if (bad.length) throw new Error('進捗リグレッション防止のため送信を中止しました（' + bad.length + '語）');
+      const newSha = await ghPut(file, itemsToPush, sha);
+      if (gateMerged){ data[deck] = itemsToPush; save(); if (mode === 'list') renderList(); }
+      ghBase[deck] = { sha: newSha, items: JSON.parse(JSON.stringify(itemsToPush)) };
+      saveBase(); syncErr = '';
+      ghStatus(gateMerged ? '☁ 競合をマージして同期しました' : '☁ 同期済み ' + new Date().toLocaleTimeString());
+      syncBusy = false; syncUi();
+      return;
+    } catch(e) {
+      lastErr = e;
+      if (attempt < PUSH_RETRY_DELAYS.length && retryableSyncErr(e)){
+        ghStatus('⏳ 同期を再試行中…（' + (attempt + 1) + '回目）');
+        await sleepMs(PUSH_RETRY_DELAYS[attempt]);
+        continue;
+      }
+      break;
     }
-    const newSha = await ghPut(file, itemsToPush, sha);
-    if (gateMerged){ data[deck] = itemsToPush; save(); if (mode === 'list') renderList(); }
-    ghBase[deck] = { sha: newSha, items: JSON.parse(JSON.stringify(itemsToPush)) };
-    saveBase(); syncErr = '';
-    ghStatus(gateMerged ? '☁ 競合をマージして同期しました' : '☁ 同期済み ' + new Date().toLocaleTimeString());
-  } catch(e) {
-    if (String(e.message).includes('409') || String(e.message).includes('422')) {
-      try {
-        const remote = await ghGet(file);
-        const merged = remote ? mergeVocab(data[deck], remote.items) : data[deck];
-        const newSha = await ghPut(file, merged, remote ? remote.sha : undefined);
-        data[deck] = merged; save();
-        ghBase[deck] = { sha: newSha, items: JSON.parse(JSON.stringify(merged)) };
-        saveBase(); syncErr = '';
-        ghStatus('☁ 競合をマージして同期しました');
-        if (mode === 'list') renderList();
-      } catch(e2){ syncErr = e2.message; ghStatus('⚠ 同期に失敗（' + e2.message + '）'); }
-    } else { syncErr = e.message; ghStatus('⚠ 同期に失敗（' + e.message + '）次回開いたときに再同期します'); }
   }
+  // リトライし尽くした場合: ghBaseを更新しないので「未送信」のまま残り、学習記録は失われない
+  syncErr = lastErr ? lastErr.message : 'unknown';
+  ghStatus('⚠ 同期に失敗（' + syncErr + '）次回開いたときに再同期します');
   syncBusy = false; syncUi();
 }
 
@@ -910,8 +927,8 @@ function closeAddModal(){ $('addModal').classList.remove('on'); }
 $('fabAdd').addEventListener('click', openAddModal);
 $('addClose').addEventListener('click', closeAddModal);
 $('addModal').addEventListener('click', e => { if (e.target === $('addModal')) closeAddModal(); });
-document.addEventListener('visibilitychange', () => { if (!document.hidden && ghReady() && Date.now() - lastPull > 60000) syncPullAll(); });
-window.addEventListener('online', () => { if (ghReady()) syncPullAll(); });
+document.addEventListener('visibilitychange', () => { if (!document.hidden && ghReady() && !syncBusy && (anyPending() || Date.now() - lastPull > 60000)) syncPullAll(); });
+window.addEventListener('online', () => { if (ghReady() && !syncBusy) syncPullAll(); });
 
 (async () => { await syncPullAll(); nextCard(); syncUi(); })();
 

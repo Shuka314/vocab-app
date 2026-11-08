@@ -68,6 +68,12 @@ form.add button{background:var(--input);color:var(--accent);border:1px solid var
 .tilde-sep{color:var(--muted);font-weight:700;padding:0 2px}
 .speak-row button{flex:1;padding:10px;border-radius:10px;border:1px solid var(--border);background:var(--card);color:var(--accent);font-size:14px;font-weight:700;cursor:pointer}
 .fab{position:fixed;right:18px;bottom:calc(22px + env(safe-area-inset-bottom));width:58px;height:58px;border-radius:50%;font-size:30px;line-height:1;background:var(--accent);color:#141414;border:none;box-shadow:0 4px 14px rgba(0,0,0,.45);z-index:50;cursor:pointer}
+.card{-webkit-touch-callout:none}
+.sheet{display:flex;flex-direction:column;gap:8px;background:var(--card);border:1px solid var(--border);border-radius:14px;padding:14px;box-shadow:0 8px 30px rgba(0,0,0,.5)}
+.sheet button{padding:14px;border-radius:10px;border:1px solid var(--border);background:var(--input);color:var(--text);font-size:16px;font-weight:700;cursor:pointer}
+.sheet-word{font-size:19px;font-weight:800;text-align:center;padding:2px 0 6px;word-break:break-word}
+.toast{position:fixed;left:50%;bottom:calc(30px + env(safe-area-inset-bottom));transform:translateX(-50%) translateY(16px);background:var(--accent);color:#141414;font-weight:800;font-size:14px;padding:10px 18px;border-radius:999px;opacity:0;pointer-events:none;transition:opacity .25s,transform .25s;z-index:120;box-shadow:0 4px 14px rgba(0,0,0,.45);white-space:nowrap}
+.toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
 </style>
 </head>
 <body>
@@ -170,6 +176,33 @@ form.add button{background:var(--input);color:var(--accent);border:1px solid var
   </div>
 </div>
 <button id="fabAdd" class="fab" title="単語を追加">＋</button>
+<div id="cardMenu" class="modal">
+  <div class="modal-card">
+    <div class="sheet">
+      <div class="sheet-word" id="menuWord"></div>
+      <button id="menuCopy" type="button">📋 コピー</button>
+      <button id="menuEdit" type="button">✏️ 編集</button>
+      <button id="menuCancel" type="button">キャンセル</button>
+    </div>
+  </div>
+</div>
+<div id="editModal" class="modal">
+  <div class="modal-card">
+    <button id="editClose" class="modal-x" aria-label="閉じる">×</button>
+    <form class="add" id="editForm">
+      <b id="editTitle">✏️ 単語を編集</b>
+      <input id="eWord" placeholder="単語" required>
+      <div id="eReadingRow">
+        <input id="eReading" placeholder="ピンイン（中国語のみ）" style="width:100%">
+      </div>
+      <input id="eMeaning" placeholder="意味" required>
+      <input id="eExample" placeholder="例文">
+      <input id="eExReading" placeholder="例文ピンイン（中国語のみ）">
+      <button type="submit">保存する</button>
+    </form>
+  </div>
+</div>
+<div id="toast" class="toast"></div>
 
 <script defer src="https://cdn.jsdelivr.net/npm/pinyin-pro@3.26.0/dist/index.js"></script>
 <script>
@@ -317,6 +350,153 @@ function grade(kind){
   save(); markDirty(current.deck); nextCard();
 }
 $('card').addEventListener('click', toggle);
+
+// ===== カード長押しメニュー（コピー／編集） =====
+let toastTimer = null;
+function toast(msg){
+  const t = $('toast'); if (!t) return;
+  t.textContent = msg; t.classList.add('on');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('on'), 1800);
+}
+async function copyText(t){
+  try { await navigator.clipboard.writeText(t); return true; } catch(e){}
+  try {
+    const ta = document.createElement('textarea');
+    ta.value = t; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    const ok = document.execCommand('copy');
+    ta.remove(); return !!ok;
+  } catch(e){ return false; }
+}
+function refreshCard(){
+  if (!current) return;
+  const it = current.item;
+  currentCloze = makeCloze(it, current.deck);
+  updateSpeakBtns();
+  if (!shown){
+    if (listenMode){ showListeningFront(); return; }
+    if (currentCloze){
+      $('word').textContent = currentCloze; $('word').style.fontSize = '23px';
+      $('reading').textContent = ''; $('meaning').textContent = it.meaning || ''; $('meaning').style.fontSize = '17px'; $('example').textContent = '';
+      $('hint').textContent = 'タップで答え合わせ';
+    } else {
+      $('word').textContent = it.word; $('word').style.fontSize = '';
+      $('reading').textContent = ''; $('meaning').textContent = ''; $('meaning').style.fontSize = ''; $('example').textContent = '';
+      $('hint').textContent = 'タップで意味を表示';
+    }
+  } else {
+    $('word').textContent = it.word; $('word').style.fontSize = '';
+    $('reading').textContent = (current.deck === 'cn' && it.reading) ? it.reading : '';
+    $('meaning').textContent = it.meaning || ''; $('meaning').style.fontSize = '';
+    let ex = '';
+    if (it.example){ ex = 'Ex) ' + it.example; if (current.deck === 'cn' && it.example_reading) ex += '\n' + it.example_reading; }
+    $('example').textContent = ex;
+    $('hint').textContent = '';
+  }
+}
+function openCardMenu(){
+  if (!current) return;
+  $('menuWord').textContent = current.item.word || '';
+  $('cardMenu').classList.add('on');
+}
+function closeCardMenu(){ $('cardMenu').classList.remove('on'); }
+$('menuCancel').addEventListener('click', closeCardMenu);
+$('cardMenu').addEventListener('click', e => { if (e.target === $('cardMenu')) closeCardMenu(); });
+$('menuCopy').addEventListener('click', async () => {
+  if (!current) return;
+  const it = current.item;
+  const parts = [it.word, it.reading, it.meaning].map(v => (v || '').trim()).filter(Boolean);
+  const ok = await copyText(parts.join('\n'));
+  closeCardMenu();
+  toast(ok ? '📋 コピーしました' : 'コピーできませんでした');
+});
+$('menuEdit').addEventListener('click', () => { closeCardMenu(); openEditModal(); });
+
+// ===== カード上の単語をその場で編集 =====
+let editTarget = null;   // {deck, item} 編集中のエントリ（data内の実参照）
+let lastAutoEReading = '', lastAutoEExReading = '', ePyTimerW = null, ePyTimerE = null;
+function openEditModal(){
+  if (!current) return;
+  editTarget = current;
+  const it = current.item, dk = current.deck;
+  lastAutoEReading = ''; lastAutoEExReading = '';
+  $('eWord').value = it.word || '';
+  $('eReading').value = it.reading || '';
+  $('eMeaning').value = it.meaning || '';
+  $('eExample').value = it.example || '';
+  $('eExReading').value = it.example_reading || '';
+  $('eReadingRow').style.display = dk === 'cn' ? '' : 'none';
+  $('eExReading').style.display = dk === 'cn' ? '' : 'none';
+  $('editTitle').textContent = '✏️ 単語を編集（' + (dk === 'en' ? '英語' : '中国語') + '）';
+  $('editModal').classList.add('on');
+}
+function closeEditModal(){ $('editModal').classList.remove('on'); }
+$('editClose').addEventListener('click', closeEditModal);
+$('editModal').addEventListener('click', e => { if (e.target === $('editModal')) closeEditModal(); });
+$('editForm').addEventListener('submit', e => {
+  e.preventDefault();
+  if (!editTarget) return;
+  const w = $('eWord').value.trim(), m = $('eMeaning').value.trim();
+  if (!w || !m){ alert('単語と意味は必須です'); return; }
+  const it = editTarget.item;
+  it.word = w; it.meaning = m; it.example = $('eExample').value.trim();
+  if (editTarget.deck === 'cn'){ it.reading = $('eReading').value.trim(); it.example_reading = $('eExReading').value.trim(); }
+  // 進捗（interval / next_review / lapses）は同じエントリとして保持し、既存の同期経路で反映する
+  save(); markDirty(editTarget.deck);
+  closeEditModal();
+  if (current === editTarget) refreshCard();
+  if (mode === 'list') renderList();
+  toast('✏️ 保存しました');
+  editTarget = null;
+});
+$('eWord').addEventListener('input', () => {
+  if (!editTarget || editTarget.deck !== 'cn') return;
+  clearTimeout(ePyTimerW);
+  ePyTimerW = setTimeout(() => {
+    const py = toPinyin($('eWord').value.trim(), true);
+    if (py && ($('eReading').value === '' || $('eReading').value === lastAutoEReading)){ $('eReading').value = py; lastAutoEReading = py; }
+  }, 250);
+});
+$('eExample').addEventListener('input', () => {
+  if (!editTarget || editTarget.deck !== 'cn') return;
+  clearTimeout(ePyTimerE);
+  ePyTimerE = setTimeout(() => {
+    const py = toPinyin($('eExample').value.trim(), false);
+    if (py && ($('eExReading').value === '' || $('eExReading').value === lastAutoEExReading)){ $('eExReading').value = py; lastAutoEExReading = py; }
+  }, 250);
+});
+
+// 長押し判定（約500ms／タッチ・マウス両対応）。通常タップの反転とは競合させない
+let lpTimer = null, lpFired = false, lpX = 0, lpY = 0, suppressCardClick = false;
+const cardEl = $('card');
+cardEl.addEventListener('pointerdown', e => {
+  if (!current) return;
+  lpFired = false; lpX = e.clientX; lpY = e.clientY;
+  clearTimeout(lpTimer);
+  lpTimer = setTimeout(() => {
+    lpTimer = null; lpFired = true;
+    stopTimer();
+    if (navigator.vibrate){ try { navigator.vibrate(10); } catch(err){} }
+    openCardMenu();
+  }, 500);
+});
+cardEl.addEventListener('pointermove', e => {
+  if (lpTimer && (Math.abs(e.clientX - lpX) > 12 || Math.abs(e.clientY - lpY) > 12)){ clearTimeout(lpTimer); lpTimer = null; }
+});
+function lpEnd(){
+  clearTimeout(lpTimer); lpTimer = null;
+  if (lpFired){ lpFired = false; suppressCardClick = true; setTimeout(() => { suppressCardClick = false; }, 600); }
+}
+cardEl.addEventListener('pointerup', lpEnd);
+cardEl.addEventListener('pointercancel', lpEnd);
+cardEl.addEventListener('pointerleave', () => { clearTimeout(lpTimer); lpTimer = null; });
+cardEl.addEventListener('contextmenu', e => e.preventDefault());
+document.addEventListener('click', e => {
+  if (suppressCardClick && e.target && e.target.closest && e.target.closest('#card')){
+    e.preventDefault(); e.stopPropagation(); suppressCardClick = false;
+  }
+}, true);
 $('btnHard').addEventListener('click', () => grade('hard'));
 $('btnNormal').addEventListener('click', () => grade('normal'));
 $('btnEasy').addEventListener('click', () => grade('easy'));

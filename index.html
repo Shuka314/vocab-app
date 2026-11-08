@@ -705,6 +705,7 @@ function pendingDeck(deck){ const b = ghBase[deck]; if (!b) return (data[deck] |
 function anyPending(){ return ['en','cn'].some(pendingDeck); }
 
 let syncBusy = false, syncErr = '', lastPull = 0;
+let syncNotes = [];
 function syncUi(){
   const p = $('syncPill'); if (!p) return;
   if (!ghReady()) p.textContent = '☁ 未設定';
@@ -733,6 +734,7 @@ async function ghPut(file, items, sha){
   const payload = { message: 'sync ' + file, content: b64enc(JSON.stringify(items, null, 2)), branch: ghCfg.branch || 'main' };
   if (sha) payload.sha = sha;
   const j = await ghApi('PUT', file, payload);
+  if (!j) throw new Error('GitHub API 404（リポジトリが見えていません）');
   return j && j.content ? j.content.sha : null;
 }
 
@@ -788,6 +790,23 @@ async function pushDeck(deck, shaOverride){
     // shaOverride は初回のみ使う（競合後の再試行ではゲートが取る最新のSHAを使う）
     let sha = (attempt === 0 && shaOverride !== undefined) ? shaOverride : (base ? base.sha : undefined);
     try {
+      // 楽観的PUT: baseのSHAを付けた送信は、サーバーがbaseから動いていれば
+      // GitHub自身が409で弾くので、全件取得ゲートなしでも上書き事故は起きない。
+      // リモートが動いていた場合（409/422）だけ従来のゲート経路へ落とす。
+      if (attempt === 0 && shaOverride === undefined && base && base.sha){
+        try {
+          const fastSha = await ghPut(file, data[deck], base.sha);
+          ghBase[deck] = { sha: fastSha, items: JSON.parse(JSON.stringify(data[deck])) };
+          saveBase(); syncErr = '';
+          ghStatus('☁ 同期済み ' + new Date().toLocaleTimeString());
+          syncBusy = false; syncUi();
+          return;
+        } catch(eFast){
+          const mf = String((eFast && eFast.message) || eFast);
+          if (!/GitHub API (409|422)/.test(mf)) throw eFast; // 回線断などは外側のリトライへ
+          // 409/422 = リモートが動いていた → このままゲート経路へ
+        }
+      }
       // 新鮮さゲート（進捗リグレッション防止）: 送信直前にGitHubの現状を取り直す。
       // 前回同期(base)からGitHubが動いていたら、そのまま上書きせず進捗優先マージしてから送る。
       let itemsToPush = data[deck];
@@ -826,14 +845,13 @@ async function pushDeck(deck, shaOverride){
   ghStatus('⚠ 同期に失敗（' + syncErr + '）次回開いたときに再同期します');
   syncBusy = false; syncUi();
 }
-
 async function syncDeck(deck){
   const file = GH_FILES[deck];
   const base = ghBase[deck];
   const remote = await ghGet(file);
   if (!remote){
     if ((data[deck] || []).length) await pushDeck(deck);
-    else { ghBase[deck] = { sha: null, items: [] }; saveBase(); }
+    else { ghBase[deck] = { sha: null, items: [] }; saveBase(); syncNotes.push((deck === 'cn' ? '中国語' : '英語') + ': GitHubにファイルが見つかりません（404）'); }
     return;
   }
   if (!(data[deck] || []).length && remote.items.length){
@@ -876,10 +894,13 @@ async function syncPullAll(){
   if (!ghReady()){ ghStatus('未設定：ローカル保存のみで動作中'); syncUi(); return; }
   syncBusy = true; syncUi(); lastPull = Date.now();
   ghStatus('☁ 同期中…');
-  let err = '';
-  for (const deck of ['en','cn']){ try { await syncDeck(deck); } catch(e){ err = e.message; } }
+  syncNotes = [];
+  const errs = [];
+  for (const deck of ['en','cn']){ try { await syncDeck(deck); } catch(e){ errs.push((deck === 'cn' ? '中国語' : '英語') + ': ' + e.message); } }
+  const err = errs.join(' ／ ');
   syncBusy = false;
   if (err){ syncErr = err; ghStatus('⚠ 同期失敗（' + err + '）'); }
+  else if (syncNotes.length){ syncErr = ''; ghStatus('⚠ ' + syncNotes.join(' ／ ') + '（owner・repo・トークンの権限を確認してね）'); }
   else { syncErr = ''; ghStatus(anyPending() ? '📤 未送信の変更があります（タップで同期）' : '☁ 同期完了 ' + new Date().toLocaleTimeString()); }
   syncUi();
 }
@@ -897,19 +918,28 @@ function fillGhForm(){
   $('ghOwner').value = ghCfg.owner || ''; $('ghRepo').value = ghCfg.repo || '';
   $('ghToken').value = ghCfg.token || ''; $('ghBranch').value = ghCfg.branch || '';
 }
-$('ghSave').addEventListener('click', async () => {
+function applyGhForm(){
   ghCfg = { owner: $('ghOwner').value.trim(), repo: $('ghRepo').value.trim(), token: $('ghToken').value.trim(), branch: $('ghBranch').value.trim() || 'main' };
   try { localStorage.setItem('vocabGhCfg', JSON.stringify(ghCfg)); } catch(e){}
-  if (ghReady()){ await syncPullAll(); if (mode === 'list') renderList(); current = null; nextCard(); }
+  return ghReady();
+}
+function formDiffersFromCfg(){
+  const o = $('ghOwner').value.trim(), r = $('ghRepo').value.trim(), t = $('ghToken').value.trim(), b = $('ghBranch').value.trim() || 'main';
+  if (!ghCfg) return !!(o || r || t);
+  return o !== (ghCfg.owner || '') || r !== (ghCfg.repo || '') || t !== (ghCfg.token || '') || b !== (ghCfg.branch || 'main');
+}
+$('ghSave').addEventListener('click', async () => {
+  if (applyGhForm()){ await syncPullAll(); if (mode === 'list') renderList(); current = null; nextCard(); }
   else ghStatus('入力が不足しています');
   syncUi();
 });
-$('ghSyncNow').addEventListener('click', async () => { await syncPullAll(); if (mode === 'list') renderList(); else { current = null; nextCard(); } });
+$('ghSyncNow').addEventListener('click', async () => { if (formDiffersFromCfg()) applyGhForm(); await syncPullAll(); if (mode === 'list') renderList(); else { current = null; nextCard(); } });
 fillGhForm();
 syncUi();
 
 $('syncPill').addEventListener('click', async () => {
   if (!ghReady()){ document.querySelector('[data-mode="list"]').click(); setTimeout(() => $('ghForm').scrollIntoView({behavior:'smooth'}), 80); return; }
+  if (formDiffersFromCfg()) applyGhForm();
   await syncPullAll();
   if (mode === 'list') renderList(); else { current = null; nextCard(); }
 });

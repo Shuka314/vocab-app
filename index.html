@@ -116,6 +116,7 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);outline-
     <label class="chk"><input type="checkbox" id="listenChk" style="width:16px;height:16px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px" aria-hidden="true"><path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/></svg> 聴き取り</label>
     <label class="chk"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px" aria-hidden="true"><line x1="16" y1="13" x2="16" y2="21"/><line x1="8" y1="13" x2="8" y2="21"/><line x1="12" y1="15" x2="12" y2="23"/><path d="M20 16.58A5 5 0 0 0 18 7h-1.26A8 8 0 1 0 4 15.25"/></svg> <select id="ambSel" style="font-size:13px;padding:2px;border-radius:6px;width:82px"><option value="rain">雨</option><option value="fire">焚き火</option><option value="waves">波</option><option value="river">川</option><option value="insects">夜の虫</option><option value="auto">おまかせ</option><option value="off">なし</option></select></label>
     <select id="themeSel">
+      <option value="auto">おまかせ</option>
       <option value="">ダーク</option>
       <option value="rpg">レトロ</option>
       <option value="souls">ソウル</option>
@@ -179,7 +180,7 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);outline-
     </div>
 
     <form class="add" id="ghForm">
-      <b><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px" aria-hidden="true"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg> GitHub同期</b> <span class="note">同期方式 v3.1 ／ 機能 v13.1（波・川の音源差し替え、ヘッダー1行化、暖色の範囲修正）</span>
+      <b><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px" aria-hidden="true"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg> GitHub同期</b> <span class="note">同期方式 v3.1 ／ 機能 v13.3（配色おまかせ20個ごと・再生音声の音量を少し下げた）</span>
       <input id="ghOwner" placeholder="GitHubユーザー名（owner）">
       <input id="ghRepo" placeholder="リポジトリ名（Private）">
       <input id="ghToken" type="password" placeholder="トークン（Contents: Read and write）">
@@ -479,17 +480,25 @@ $('timerChk').addEventListener('change', e => { if (e.target.checked && current)
 if (listenMode) $('listenChk').checked = true;
 $('listenChk').addEventListener('change', e => { listenMode = e.target.checked; try { localStorage.setItem('vocabListen', listenMode ? '1' : '0'); } catch(err){} if (current){ shown = true; toggle(); if (listenMode) autoSpeakListening(); } });
 const THEME_CYCLE = ['', 'rpg', 'souls', 'persona', 'zelda', 'genshin', 'nier', 'doubutsu'];
-function applyTheme(v){ document.body.className = v; $('themeSel').value = v; try { localStorage.setItem('vocabTheme', v); } catch(err){} }
+let themeSelMode = '';
+try { themeSelMode = localStorage.getItem('vocabTheme') || ''; } catch(e){}
+let reviewTotal = 0;
+try { reviewTotal = parseInt(localStorage.getItem('vocabReviewTotal') || '0', 10) || 0; } catch(e){}
+function cycleTheme(){ return THEME_CYCLE[Math.floor(reviewTotal / 20) % THEME_CYCLE.length]; }
+function paintTheme(){ document.body.className = themeSelMode === 'auto' ? cycleTheme() : themeSelMode; }
+function applyTheme(v){
+  themeSelMode = v;
+  try { localStorage.setItem('vocabTheme', v); } catch(err){}
+  $('themeSel').value = v;
+  paintTheme();
+}
 $('themeSel').addEventListener('change', e => applyTheme(e.target.value));
-let reviewTotal = 0, themeAutoIdx = 0;
-try { reviewTotal = parseInt(localStorage.getItem('vocabReviewTotal') || '0', 10) || 0; themeAutoIdx = parseInt(localStorage.getItem('vocabThemeAutoIdx') || '0', 10) || 0; } catch(e){}
 function bumpReview(){
   reviewTotal++;
   try { localStorage.setItem('vocabReviewTotal', String(reviewTotal)); } catch(e){}
-  const ti = Math.floor(reviewTotal / 50) % THEME_CYCLE.length;
-  if (ti !== themeAutoIdx){ themeAutoIdx = ti; try { localStorage.setItem('vocabThemeAutoIdx', String(ti)); } catch(e){} applyTheme(THEME_CYCLE[ti]); }
+  if (themeSelMode === 'auto') paintTheme();
 }
-try { const th = localStorage.getItem('vocabTheme'); if (th !== null){ document.body.className = th; $('themeSel').value = th; } } catch(e){}
+$('themeSel').value = themeSelMode; paintTheme();
 
 // ===== 雨エフェクト（ガラスを滴る雨） =====
 const rainCv = $('rainCv'), rctx = rainCv.getContext('2d');
@@ -883,7 +892,7 @@ $('resetBtn').addEventListener('click', async () => { if (!confirm('GitHub上の
 
 // ===== 音声再生 =====
 let ttsAudio = null;
-function getTtsAudio(){ if (!ttsAudio){ ttsAudio = new Audio(); ttsAudio.preload = 'auto'; } return ttsAudio; }
+function getTtsAudio(){ if (!ttsAudio){ ttsAudio = new Audio(); ttsAudio.preload = 'auto'; ttsAudio.volume = 0.8; } return ttsAudio; }
 let audioUnlocked = false;
 function unlockAudio(){
   if (audioUnlocked) return;
@@ -989,6 +998,7 @@ function speakLocal(text, deck){
     const doSpeak = () => {
       try {
         const u = new SpeechSynthesisUtterance(text);
+        u.volume = 0.8;
         const vs = (synth.getVoices() || []).filter(v => (v.lang || '').toLowerCase().startsWith(deck === 'cn' ? 'zh' : 'en'));
         const vscore = v => { const s = ((v.name || '') + ' ' + (v.voiceURI || '')).toLowerCase(); return (s.includes('premium') || s.includes('enhanced')) ? 3 : (s.includes('siri') ? 2 : 0); };
         const v = vs.sort((a, b) => vscore(b) - vscore(a))[0];

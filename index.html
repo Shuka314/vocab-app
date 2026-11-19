@@ -491,13 +491,20 @@ let rainSrcReady = false, rainSrcTried = false;
 function ensureRainSrc(){
   if (rainSrcTried || !rainAudio) return;
   rainSrcTried = true;
-  fetch('rain_b64.txt').then(r => r.text()).then(t => {
+  const use = t => {
     const bin = atob(t.replace(/\s/g, ''));
     const arr = new Uint8Array(bin.length);
     for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
     rainAudio.src = URL.createObjectURL(new Blob([arr], { type: 'audio/mpeg' }));
     rainSrcReady = true;
     startRainAudio();
+  };
+  let cached = null;
+  try { cached = localStorage.getItem('vocabRainB64'); } catch(e){}
+  if (cached && cached.length > 100000){ use(cached); return; }
+  fetch('rain_b64.txt').then(r => r.text()).then(t => {
+    try { localStorage.setItem('vocabRainB64', t); } catch(e){}
+    use(t);
   }).catch(() => {});
 }
 function startRainAudio(){

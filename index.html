@@ -27,10 +27,10 @@ select,input,textarea{background:var(--input);color:var(--text);border:1px solid
 .tabs button{flex:1;padding:11px 4px;border-radius:10px;border:1px solid var(--border);background:var(--card);color:var(--muted);font-size:15px;font-weight:700}
 .tabs button.on{color:var(--accent);border-color:var(--accent)}
 main{flex:1;display:flex;flex-direction:column;padding:12px 14px;gap:10px;max-width:720px;width:100%;margin:0 auto}
-.card{background:var(--card);border:1px solid var(--border);border-radius:16px;min-height:300px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:26px 20px;text-align:center;cursor:pointer;user-select:none;position:relative}
+.card{background:var(--card);border:1px solid var(--border);border-radius:16px;min-height:360px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:26px 20px;text-align:center;cursor:pointer;user-select:none;position:relative;touch-action:manipulation}
 .badge{position:absolute;top:12px;left:16px;font-size:12px;font-weight:700;color:var(--accent)}
 .timer{position:absolute;top:12px;right:54px;font-size:14px;font-weight:700;color:var(--warning)}
-.card-edit{position:absolute;top:8px;right:10px;background:none;border:none;font-size:19px;line-height:1;padding:6px;cursor:pointer;z-index:2}
+.card-edit{position:absolute;top:10px;right:10px;background:none;border:none;color:var(--muted);line-height:0;padding:6px;cursor:pointer;z-index:2}
 .word{font-size:34px;font-weight:800;line-height:1.3;word-break:break-word}
 .reading{font-size:19px;color:var(--accent);margin-top:12px;white-space:pre-line}
 .meaning{font-size:21px;color:var(--accent);margin-top:8px;white-space:pre-line;line-height:1.5}
@@ -74,7 +74,7 @@ form.add button{background:var(--input);color:var(--accent);border:1px solid var
 .tilde-sep{color:var(--muted);font-weight:700;padding:0 2px}
 .speak-row button{flex:1;padding:10px;border-radius:10px;border:1px solid var(--border);background:var(--card);color:var(--accent);font-size:14px;font-weight:700;cursor:pointer}
 #studyView{perspective:900px}
-button{transition:transform .08s ease,background-color .2s ease,border-color .2s ease,color .2s ease}
+button{transition:transform .08s ease,background-color .2s ease,border-color .2s ease,color .2s ease;touch-action:manipulation}
 button:active{transform:scale(.965)}
 .grades button:active{transform:scale(.93)}
 .fab:active{transform:scale(.9)}
@@ -84,6 +84,8 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);outline-
 .anim-in{animation:cardIn .28s cubic-bezier(.2,.9,.25,1.15)}
 @keyframes flipIn{from{transform:rotateY(-32deg);opacity:.35}to{transform:rotateY(0);opacity:1}}
 .anim-flip{animation:flipIn .26s ease-out}
+@keyframes flipBack{from{transform:rotateY(32deg);opacity:.35}to{transform:rotateY(0);opacity:1}}
+.anim-flip-b{animation:flipBack .26s ease-out}
 @keyframes outL{to{opacity:0;transform:translateX(-30px) scale(.96)}}
 @keyframes outR{to{opacity:0;transform:translateX(30px) scale(.96)}}
 @keyframes outN{to{opacity:0;transform:scale(.94)}}
@@ -95,6 +97,7 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);outline-
 @keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
 .view.on{animation:fadeUp .25s ease-out}
 .item{animation:fadeUp .3s ease-out backwards}
+#rainCv{position:fixed;top:0;left:0;width:100%;height:210px;z-index:5;pointer-events:none}
 @media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
 .fab{position:fixed;right:18px;bottom:calc(22px + env(safe-area-inset-bottom));width:58px;height:58px;border-radius:50%;font-size:30px;line-height:1;background:var(--accent);color:#141414;border:none;box-shadow:0 4px 14px rgba(0,0,0,.45);z-index:50;cursor:pointer}
 </style>
@@ -106,15 +109,16 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);outline-
   <div class="row" style="align-items:center">
     <label class="chk"><input type="checkbox" id="timerChk" style="width:20px;height:20px"> ⏳30秒</label>
     <label class="chk"><input type="checkbox" id="listenChk" style="width:20px;height:20px"> 🎧 聴き取り</label>
+    <label class="chk"><input type="checkbox" id="rainChk" style="width:20px;height:20px"> 🌧 雨</label>
     <select id="themeSel">
-      <option value="">🌙 モダンダーク</option>
-      <option value="rpg">🌟 レトロRPG</option>
-      <option value="souls">🏰 ダークソウル</option>
-      <option value="persona">🔴 ペルソナ風</option>
-      <option value="zelda">🗡️ ゼルダ風</option>
-      <option value="genshin">✨ 原神風（ライト）</option>
-      <option value="nier">🤖 ニーア風（ライト）</option>
-      <option value="doubutsu">🍃 どうぶつの森風（ライト）</option>
+      <option value="">ダーク</option>
+      <option value="rpg">レトロ</option>
+      <option value="souls">ソウル</option>
+      <option value="persona">レッド</option>
+      <option value="zelda">ティール</option>
+      <option value="genshin">アイボリー</option>
+      <option value="nier">セピア</option>
+      <option value="doubutsu">パステル</option>
     </select>
   </div>
 </header>
@@ -131,7 +135,7 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);outline-
     <div class="card" id="card">
       <div class="badge" id="badge"></div>
       <div class="timer" id="timer"></div>
-      <button id="cardEdit" class="card-edit" aria-label="この単語を編集" style="display:none">✏️</button>
+      <button id="cardEdit" class="card-edit" aria-label="この単語を編集" style="display:none"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg></button>
       <div class="word" id="word">---</div>
       <div class="reading" id="reading"></div>
       <div class="meaning" id="meaning"></div>
@@ -169,7 +173,7 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);outline-
     </div>
 
     <form class="add" id="ghForm">
-      <b>☁ GitHub同期</b> <span class="note">同期方式 v3.1 ／ 機能 v6（テーマ8種・モーション）</span>
+      <b>☁ GitHub同期</b> <span class="note">同期方式 v3.1 ／ 機能 v7（自動テーマ・雨エフェクト）</span>
       <input id="ghOwner" placeholder="GitHubユーザー名（owner）">
       <input id="ghRepo" placeholder="リポジトリ名（Private）">
       <input id="ghToken" type="password" placeholder="トークン（Contents: Read and write）">
@@ -208,7 +212,7 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);outline-
   <div class="modal-card">
     <button id="editClose" class="modal-x" aria-label="閉じる">×</button>
     <form class="add" id="editForm">
-      <b id="editTitle">✏️ 単語を編集</b>
+      <b id="editTitle">単語を編集</b>
       <div class="split-row">
         <input id="eWordL" placeholder="単語" required>
         <span class="tilde-sep">~</span>
@@ -229,6 +233,7 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);outline-
 </div>
 <button id="fabAdd" class="fab" title="単語を追加">＋</button>
 
+<canvas id="rainCv" style="display:none"></canvas>
 <script defer src="https://cdn.jsdelivr.net/npm/pinyin-pro@3.26.0/dist/index.js"></script>
 <script>
 const INITIAL = { en: [], cn: [] };
@@ -312,7 +317,7 @@ function nextCard(){
     if (listenMode){
       showListeningFront();
     } else if (currentCloze){
-      $('badge').textContent = (leechMode ? '⚠ 苦手 ' : '') + '🕳 穴埋め ' + mixLabel;
+      $('badge').textContent = (leechMode ? '⚠ 苦手 ' : '') + '穴埋め ' + mixLabel;
       $('word').textContent = currentCloze;
       $('word').style.fontSize = '23px';
       $('reading').textContent = ''; $('meaning').textContent = it.meaning || ''; $('meaning').style.fontSize = '17px'; $('example').textContent = '';
@@ -337,7 +342,7 @@ function toggle(){
   if (!current) return;
   setTimeout(updateSpeakBtns, 0);
   shown = !shown; const it = current.item;
-  if (shown){ const c = $('card'); c.classList.remove('anim-flip'); void c.offsetWidth; c.classList.add('anim-flip'); }
+  { const c = $('card'); const cls = shown ? 'anim-flip' : 'anim-flip-b'; c.classList.remove('anim-flip','anim-flip-b'); void c.offsetWidth; c.classList.add(cls); }
   if (!shown && listenMode){ showListeningFront(); return; }
   if (shown && listenMode && !currentCloze){ $('word').textContent = it.word; $('word').style.fontSize = ''; }
   if (shown && currentCloze){
@@ -375,6 +380,7 @@ function grade(kind){
   if (kind === 'hard'){ it.lapses = (it.lapses || 0) + 1; it.interval = cur <= 1 ? 0 : Math.floor(cur / 2); it.next_review = addDays(it.interval); }
   else if (kind === 'normal'){ const n = cur === 0 ? 1 : cur * 2; it.interval = n; it.next_review = addDays(n); }
   else { const n = cur === 0 ? 3 : cur * 4; it.interval = n; it.next_review = addDays(n); }
+  bumpReview();
   save(); markDirty(current.deck);
   setGrades(false);
   const cardEl = $('card');
@@ -390,8 +396,65 @@ $('btnEasy').addEventListener('click', () => grade('easy'));
 $('timerChk').addEventListener('change', e => { if (e.target.checked && current) startTimer(); else stopTimer(); });
 if (listenMode) $('listenChk').checked = true;
 $('listenChk').addEventListener('change', e => { listenMode = e.target.checked; try { localStorage.setItem('vocabListen', listenMode ? '1' : '0'); } catch(err){} if (current){ shown = true; toggle(); if (listenMode) autoSpeakListening(); } });
-$('themeSel').addEventListener('change', e => { document.body.className = e.target.value; try{ localStorage.setItem('vocabTheme', e.target.value); }catch(err){} });
+const THEME_CYCLE = ['', 'rpg', 'souls', 'persona', 'zelda', 'genshin', 'nier', 'doubutsu'];
+function applyTheme(v){ document.body.className = v; $('themeSel').value = v; try { localStorage.setItem('vocabTheme', v); } catch(err){} }
+$('themeSel').addEventListener('change', e => applyTheme(e.target.value));
+let reviewTotal = 0, themeAutoIdx = 0;
+try { reviewTotal = parseInt(localStorage.getItem('vocabReviewTotal') || '0', 10) || 0; themeAutoIdx = parseInt(localStorage.getItem('vocabThemeAutoIdx') || '0', 10) || 0; } catch(e){}
+function bumpReview(){
+  reviewTotal++;
+  try { localStorage.setItem('vocabReviewTotal', String(reviewTotal)); } catch(e){}
+  const ti = Math.floor(reviewTotal / 50) % THEME_CYCLE.length;
+  if (ti !== themeAutoIdx){ themeAutoIdx = ti; try { localStorage.setItem('vocabThemeAutoIdx', String(ti)); } catch(e){} applyTheme(THEME_CYCLE[ti]); }
+}
 try { const th = localStorage.getItem('vocabTheme'); if (th !== null){ document.body.className = th; $('themeSel').value = th; } } catch(e){}
+
+// ===== 雨エフェクト（ガラスを滴る雨） =====
+const rainCv = $('rainCv'), rctx = rainCv.getContext('2d');
+let rainOn = true, rainRaf = null, rainW = 0, rainH = 210, drops = [], trails = [];
+try { rainOn = localStorage.getItem('vocabRain') !== '0'; } catch(e){}
+function sizeRain(){
+  const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+  rainW = window.innerWidth; rainH = 210;
+  rainCv.width = Math.floor(rainW * dpr); rainCv.height = Math.floor(rainH * dpr);
+  rctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+function drawDrop(x, y, r){
+  const g = rctx.createRadialGradient(x - r * 0.3, y - r * 0.3, r * 0.1, x, y, r);
+  g.addColorStop(0, 'rgba(255,255,255,0.30)');
+  g.addColorStop(0.7, 'rgba(200,225,255,0.10)');
+  g.addColorStop(1, 'rgba(160,200,235,0.18)');
+  rctx.fillStyle = g;
+  rctx.beginPath(); rctx.arc(x, y, r, 0, 6.2832); rctx.fill();
+}
+function rainStep(){
+  if (!rainOn){ rainRaf = null; return; }
+  rctx.clearRect(0, 0, rainW, rainH);
+  if (drops.length < 42 && Math.random() < 0.35)
+    drops.push({ x: Math.random() * rainW, y: Math.random() * 120 + 4, r: 0.7, max: 2.4 + Math.random() * 2.2, vy: 0, ph: Math.random() * 6.28 });
+  trails = trails.filter(t => (t.life -= 0.012) > 0);
+  trails.forEach(t => { rctx.globalAlpha = Math.max(t.life, 0) * 0.7; drawDrop(t.x, t.y, t.r); });
+  rctx.globalAlpha = 1;
+  drops = drops.filter(d => d.y < rainH + 6);
+  drops.forEach(d => {
+    if (d.r < d.max){ d.r += 0.012; }
+    else {
+      d.vy = Math.min(d.vy + 0.045, 1.5 + d.max * 0.35);
+      d.y += d.vy;
+      d.x += Math.sin(d.y * 0.05 + d.ph) * 0.35;
+      d.r = Math.max(d.r - 0.006, 1.1);
+      if (Math.random() < 0.3) trails.push({ x: d.x, y: d.y - d.r, r: d.r * 0.45, life: 0.9 });
+    }
+    drawDrop(d.x, d.y, d.r);
+  });
+  rainRaf = requestAnimationFrame(rainStep);
+}
+function startRain(){ sizeRain(); rainCv.style.display = ''; if (rainRaf == null) rainRaf = requestAnimationFrame(rainStep); }
+function stopRain(){ rainCv.style.display = 'none'; if (rainRaf != null){ cancelAnimationFrame(rainRaf); rainRaf = null; } }
+$('rainChk').checked = rainOn;
+if (rainOn) startRain();
+$('rainChk').addEventListener('change', e => { rainOn = e.target.checked; try { localStorage.setItem('vocabRain', rainOn ? '1' : '0'); } catch(err){} if (rainOn) startRain(); else stopRain(); });
+window.addEventListener('resize', () => { if (rainOn) sizeRain(); });
 
 document.querySelectorAll('.tabs button').forEach(b => b.addEventListener('click', () => {
   leechMode = false;
@@ -434,7 +497,7 @@ function renderList(anim){
     div.querySelector('b').textContent = it.word;
     div.querySelector('.sub').textContent = sub + (it.example ? '\nEx) ' + it.example : '');
     const badges = [];
-    if (makeCloze(it, listDeck)) badges.push('🕳穴埋め可');
+    if (makeCloze(it, listDeck)) badges.push('穴埋め可');
     if ((it.lapses || 0) >= LEECH_MIN) badges.push('⚠苦手');
     if ((it.lapses || 0) > 0) badges.push('難しい×' + it.lapses);
     div.querySelector('.meta').textContent = (badges.length ? badges.join(' ') + ' ／ ' : '') + '間隔 ' + (it.interval || 0) + '日 ／ 次回 ' + (it.next_review || '');
@@ -465,7 +528,7 @@ function openEdit(deck, item, origin){
   if (origin === 'card') stopTimer();
   editCtx = { deck: deck, item: item, origin: origin };
   const isCn = deck === 'cn';
-  $('editTitle').textContent = '✏️ 単語を編集（' + (isCn ? '中国語' : '英語') + '）';
+  $('editTitle').textContent = '単語を編集（' + (isCn ? '中国語' : '英語') + '）';
   const wp = splitTilde(item.word);
   $('eWordL').value = wp[0]; $('eWordR').value = wp[1];
   const rp = splitTilde(item.reading || '');

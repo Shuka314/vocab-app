@@ -24,7 +24,8 @@ select,input,textarea{background:var(--input);color:var(--text);border:1px solid
 main{flex:1;display:flex;flex-direction:column;padding:12px 14px;gap:10px;max-width:720px;width:100%;margin:0 auto}
 .card{background:var(--card);border:1px solid var(--border);border-radius:16px;min-height:300px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:26px 20px;text-align:center;cursor:pointer;user-select:none;position:relative}
 .badge{position:absolute;top:12px;left:16px;font-size:12px;font-weight:700;color:var(--accent)}
-.timer{position:absolute;top:12px;right:16px;font-size:14px;font-weight:700;color:var(--warning)}
+.timer{position:absolute;top:12px;right:54px;font-size:14px;font-weight:700;color:var(--warning)}
+.card-edit{position:absolute;top:8px;right:10px;background:none;border:none;font-size:19px;line-height:1;padding:6px;cursor:pointer;z-index:2}
 .word{font-size:34px;font-weight:800;line-height:1.3;word-break:break-word}
 .reading{font-size:19px;color:var(--accent);margin-top:12px;white-space:pre-line}
 .meaning{font-size:21px;color:var(--accent);margin-top:8px;white-space:pre-line;line-height:1.5}
@@ -97,6 +98,7 @@ form.add button{background:var(--input);color:var(--accent);border:1px solid var
     <div class="card" id="card">
       <div class="badge" id="badge"></div>
       <div class="timer" id="timer"></div>
+      <button id="cardEdit" class="card-edit" aria-label="この単語を編集" style="display:none">✏️</button>
       <div class="word" id="word">---</div>
       <div class="reading" id="reading"></div>
       <div class="meaning" id="meaning"></div>
@@ -134,7 +136,7 @@ form.add button{background:var(--input);color:var(--accent);border:1px solid var
     </div>
 
     <form class="add" id="ghForm">
-      <b>☁ GitHub同期</b> <span class="note">同期方式 v3.1 ／ 機能 v4（穴埋め・苦手・定着度）</span>
+      <b>☁ GitHub同期</b> <span class="note">同期方式 v3.1 ／ 機能 v5（カード編集・モーダル編集）</span>
       <input id="ghOwner" placeholder="GitHubユーザー名（owner）">
       <input id="ghRepo" placeholder="リポジトリ名（Private）">
       <input id="ghToken" type="password" placeholder="トークン（Contents: Read and write）">
@@ -166,6 +168,29 @@ form.add button{background:var(--input);color:var(--accent);border:1px solid var
       <input id="fExample" placeholder="例文">
       <input id="fExReading" placeholder="例文ピンイン（中国語のみ）">
       <button type="submit">追加する</button>
+    </form>
+  </div>
+</div>
+<div id="editModal" class="modal">
+  <div class="modal-card">
+    <button id="editClose" class="modal-x" aria-label="閉じる">×</button>
+    <form class="add" id="editForm">
+      <b id="editTitle">✏️ 単語を編集</b>
+      <div class="split-row">
+        <input id="eWordL" placeholder="単語" required>
+        <span class="tilde-sep">~</span>
+        <input id="eWordR" placeholder="後半（フレーズ用）">
+      </div>
+      <div class="split-row" id="eReadingRow">
+        <input id="eReadingL" placeholder="ピンイン（中国語のみ）">
+        <span class="tilde-sep">~</span>
+        <input id="eReadingR" placeholder="後半ピンイン">
+      </div>
+      <input id="eMeaning" placeholder="意味" required>
+      <input id="eExample" placeholder="例文">
+      <input id="eExReading" placeholder="例文ピンイン（中国語のみ）">
+      <button type="submit">保存する</button>
+      <button type="button" id="eDelete" class="danger">🗑 この単語を削除</button>
     </form>
   </div>
 </div>
@@ -371,7 +396,7 @@ function renderList(){
     div.querySelector('.meta').textContent = (badges.length ? badges.join(' ') + ' ／ ' : '') + '間隔 ' + (it.interval || 0) + '日 ／ 次回 ' + (it.next_review || '');
     div.addEventListener('click', () => editItem(idx));
     let pressTimer = null;
-    div.addEventListener('touchstart', () => { pressTimer = setTimeout(() => { if (confirm('「' + it.word + '」を削除しますか？')){ items.splice(idx,1); save(); markDirty(listDeck); renderList(); } }, 700); }, {passive:true});
+    div.addEventListener('touchstart', () => { pressTimer = setTimeout(() => { openEdit(listDeck, items[idx], 'list'); }, 700); }, {passive:true});
     div.addEventListener('touchend', () => clearTimeout(pressTimer));
     frag.appendChild(div);
   });
@@ -389,20 +414,56 @@ $('leechStudy').addEventListener('click', () => {
   current = null; nextCard();
 });
 
-function editItem(idx){
-  const it = data[listDeck][idx];
-  const w = prompt('単語', it.word); if (w === null) return;
-  let r = it.reading || '';
-  if (listDeck === 'cn'){ r = prompt('ピンイン', r); if (r === null) return; }
-  const m = prompt('意味', it.meaning); if (m === null) return;
-  const ex = prompt('例文', it.example || ''); if (ex === null) return;
-  let exr = it.example_reading || '';
-  if (listDeck === 'cn'){ exr = prompt('例文ピンイン', exr); if (exr === null) return; }
-  if (!w.trim() || !m.trim()){ alert('単語と意味は必須です'); return; }
-  it.word = w.trim(); it.meaning = m.trim(); it.example = ex.trim();
-  if (listDeck === 'cn'){ it.reading = r.trim(); it.example_reading = exr.trim(); }
-  save(); markDirty(listDeck); renderList();
+let editCtx = null, delArmed = false;
+function splitTilde(s){ s = s || ''; const i = s.indexOf('~'); return i < 0 ? [s, ''] : [s.slice(0, i), s.slice(i + 1)]; }
+function resetDelBtn(){ delArmed = false; $('eDelete').textContent = '🗑 この単語を削除'; }
+function openEdit(deck, item, origin){
+  if (origin === 'card') stopTimer();
+  editCtx = { deck: deck, item: item, origin: origin };
+  const isCn = deck === 'cn';
+  $('editTitle').textContent = '✏️ 単語を編集（' + (isCn ? '中国語' : '英語') + '）';
+  const wp = splitTilde(item.word);
+  $('eWordL').value = wp[0]; $('eWordR').value = wp[1];
+  const rp = splitTilde(item.reading || '');
+  $('eReadingL').value = rp[0]; $('eReadingR').value = rp[1];
+  $('eReadingRow').style.display = isCn ? '' : 'none';
+  $('eMeaning').value = item.meaning || '';
+  $('eExample').value = item.example || '';
+  $('eExReading').value = item.example_reading || '';
+  $('eExReading').style.display = isCn ? '' : 'none';
+  resetDelBtn();
+  $('editModal').classList.add('on');
 }
+function closeEditModal(){ $('editModal').classList.remove('on'); editCtx = null; }
+function editItem(idx){ openEdit(listDeck, data[listDeck][idx], 'list'); }
+$('editForm').addEventListener('submit', e => {
+  e.preventDefault();
+  if (!editCtx) return;
+  const deck = editCtx.deck, item = editCtx.item, origin = editCtx.origin;
+  const w = joinTilde($('eWordL').value, $('eWordR').value);
+  const m = $('eMeaning').value.trim();
+  if (!w || !m) return;
+  item.word = w; item.meaning = m; item.example = $('eExample').value.trim();
+  if (deck === 'cn'){ item.reading = joinTilde($('eReadingL').value, $('eReadingR').value); item.example_reading = $('eExReading').value.trim(); }
+  save(); markDirty(deck);
+  closeEditModal();
+  if (origin === 'list') renderList();
+  else if (current && current.item === item){ currentCloze = makeCloze(item, deck); const s = shown; shown = !s; toggle(); }
+});
+$('eDelete').addEventListener('click', () => {
+  if (!editCtx) return;
+  if (!delArmed){ delArmed = true; $('eDelete').textContent = '⚠ 本当に削除する？（もう一度タップ）'; return; }
+  const deck = editCtx.deck, item = editCtx.item, origin = editCtx.origin;
+  const arr = data[deck]; const i = arr.indexOf(item);
+  if (i >= 0) arr.splice(i, 1);
+  save(); markDirty(deck);
+  closeEditModal();
+  if (origin === 'list') renderList();
+  else { current = null; nextCard(); }
+});
+$('editClose').addEventListener('click', closeEditModal);
+$('editModal').addEventListener('click', e => { if (e.target === $('editModal')) closeEditModal(); });
+$('cardEdit').addEventListener('click', e => { e.stopPropagation(); if (current) openEdit(current.deck, current.item, 'card'); });
 function joinTilde(l, r){ l = (l || '').trim(); r = (r || '').trim(); return r ? l + '~' + r : l; }
 const wordFromForm = () => joinTilde($('fWordL').value, $('fWordR').value);
 const readingFromForm = () => joinTilde($('fReadingL').value, $('fReadingR').value);
@@ -626,7 +687,9 @@ function autoSpeakListening(){
 function updateSpeakBtns(){
   const w = $('speakWord'), x = $('speakEx');
   if (!w || !x) return;
-  if (!current){ w.style.display = 'none'; x.style.display = 'none'; return; }
+  const eb = $('cardEdit');
+  if (!current){ w.style.display = 'none'; x.style.display = 'none'; if (eb) eb.style.display = 'none'; return; }
+  if (eb) eb.style.display = '';
   w.style.display = '';
   x.style.display = current.item.example ? '' : 'none';
 }

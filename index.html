@@ -152,6 +152,7 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);outline-
       <button class="g-easy" id="btnEasy">簡単</button>
     </div>
     <div class="stats" id="stats"></div>
+    <div class="note" id="studyTime" style="text-align:center;margin-top:2px"></div>
   </section>
 
   <section id="listView" class="view">
@@ -173,7 +174,7 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);outline-
     </div>
 
     <form class="add" id="ghForm">
-      <b><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px" aria-hidden="true"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg> GitHub同期</b> <span class="note">同期方式 v3.1 ／ 機能 v9（リアル雨・雨音・SVGアイコン）</span>
+      <b><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px" aria-hidden="true"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg> GitHub同期</b> <span class="note">同期方式 v3.1 ／ 機能 v10（タイマー一時停止・学習時間の記録）</span>
       <input id="ghOwner" placeholder="GitHubユーザー名（owner）">
       <input id="ghRepo" placeholder="リポジトリ名（Private）">
       <input id="ghToken" type="password" placeholder="トークン（Contents: Read and write）">
@@ -290,15 +291,55 @@ function statsText(){
   decks().forEach(dk => { total += data[dk].length; due += data[dk].filter(it => (it.next_review || t) <= t).length; });
   return ICONS.flag + ' 本日の要復習: ' + due + '件 ／ 総単語数: ' + total + '件';
 }
-function stopTimer(){ if (timerId){ clearInterval(timerId); timerId = null; } $('timer').textContent=''; }
+let timerPaused = false;
+function stopTimer(){ if (timerId){ clearInterval(timerId); timerId = null; } timerPaused = false; $('timer').textContent=''; }
+function tickTimer(){
+  timeLeft--;
+  if (timeLeft > 0){ $('timer').innerHTML = ICONS.clock + ' 00:' + String(timeLeft).padStart(2,'0'); }
+  else { stopTimer(); $('timer').innerHTML = ICONS.clock + ' タイムアップ！'; grade('hard'); }
+}
 function startTimer(){
   stopTimer(); timeLeft = 30; $('timer').innerHTML = ICONS.clock + ' 00:30';
-  timerId = setInterval(() => {
-    timeLeft--;
-    if (timeLeft > 0){ $('timer').innerHTML = ICONS.clock + ' 00:' + String(timeLeft).padStart(2,'0'); }
-    else { stopTimer(); $('timer').innerHTML = ICONS.clock + ' タイムアップ！'; grade('hard'); }
-  }, 1000);
+  timerId = setInterval(tickTimer, 1000);
 }
+function pauseTimer(){ if (timerId){ clearInterval(timerId); timerId = null; timerPaused = true; } }
+function resumeTimer(){ if (timerPaused && current && $('timerChk').checked){ timerPaused = false; timerId = setInterval(tickTimer, 1000); } }
+document.addEventListener('visibilitychange', () => { if (document.hidden) pauseTimer(); else resumeTimer(); });
+
+// ===== 学習時間の記録（日本時間の日別・ページがアクティブな間だけ） =====
+const STUDY_KEY = 'vocabStudyTimeV1';
+function jstDateStr(d){
+  try { return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tokyo', year: 'numeric', month: '2-digit', day: '2-digit' }).format(d || new Date()); }
+  catch(e){ return todayStr(d); }
+}
+let studyMap = {};
+try { studyMap = JSON.parse(localStorage.getItem(STUDY_KEY) || '{}') || {}; } catch(e){ studyMap = {}; }
+{ const keys = Object.keys(studyMap).sort(); if (keys.length > 400) { keys.slice(0, keys.length - 400).forEach(k => delete studyMap[k]); } }
+let studyLast = Date.now();
+function fmtDur(sec){
+  sec = Math.floor(sec || 0);
+  const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = sec % 60;
+  return h > 0 ? h + '時間' + m + '分' : (m > 0 ? m + '分' + s + '秒' : s + '秒');
+}
+function renderStudyTime(){
+  const el = $('studyTime'); if (!el) return;
+  el.textContent = '今日の学習時間： ' + fmtDur(studyMap[jstDateStr()] || 0);
+}
+function studyTick(){
+  const now = Date.now();
+  if (document.visibilityState === 'visible'){
+    const delta = Math.min((now - studyLast) / 1000, 5);
+    if (delta > 0){
+      const k = jstDateStr();
+      studyMap[k] = (studyMap[k] || 0) + delta;
+      try { localStorage.setItem(STUDY_KEY, JSON.stringify(studyMap)); } catch(e){}
+      renderStudyTime();
+    }
+  }
+  studyLast = now;
+}
+setInterval(studyTick, 1000);
+renderStudyTime();
 function cardIn(){ const c = $('card'); c.classList.remove('anim-in'); void c.offsetWidth; c.classList.add('anim-in'); }
 function nextCard(){
   stopTimer(); shown = false; revealSpoke = false;

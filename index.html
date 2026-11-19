@@ -126,7 +126,7 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);outline-
 <div class="tabs">
   <button data-mode="en" class="on">英語</button>
   <button data-mode="cn">中国語</button>
-  <button data-mode="mix">🔄 混合</button>
+  <button data-mode="mix">混合</button>
   <button data-mode="list"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg> 一覧</button>
 </div>
 
@@ -174,7 +174,7 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);outline-
     </div>
 
     <form class="add" id="ghForm">
-      <b><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px" aria-hidden="true"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg> GitHub同期</b> <span class="note">同期方式 v3.1 ／ 機能 v11（雨音フェード・復習数の記録）</span>
+      <b><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px" aria-hidden="true"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg> GitHub同期</b> <span class="note">同期方式 v3.1 ／ 機能 v12（雨音クロスフェードループ）</span>
       <input id="ghOwner" placeholder="GitHubユーザー名（owner）">
       <input id="ghRepo" placeholder="リポジトリ名（Private）">
       <input id="ghToken" type="password" placeholder="トークン（Contents: Read and write）">
@@ -235,7 +235,7 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);outline-
 <button id="fabAdd" class="fab" title="単語を追加">＋</button>
 
 <canvas id="rainCv" style="display:none"></canvas>
-<audio id="rainAudio" loop preload="none" style="display:none"></audio>
+<audio id="rainAudio" preload="none" style="display:none"></audio>
 <script defer src="https://cdn.jsdelivr.net/npm/pinyin-pro@3.26.0/dist/index.js"></script>
 <script>
 const INITIAL = { en: [], cn: [] };
@@ -546,7 +546,9 @@ function ensureRainSrc(){
     const bin = atob(t.replace(/\s/g, ''));
     const arr = new Uint8Array(bin.length);
     for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
-    rainAudio.src = URL.createObjectURL(new Blob([arr], { type: 'audio/mpeg' }));
+    rainUrl = URL.createObjectURL(new Blob([arr], { type: 'audio/mpeg' }));
+    rainAudio.src = rainUrl;
+    if (rainAudio2) rainAudio2.src = rainUrl;
     rainSrcReady = true;
     startRainAudio();
   };
@@ -559,32 +561,71 @@ function ensureRainSrc(){
   }).catch(() => {});
 }
 const RAIN_VOL = 0.32;
-let rainFadeTimer = null;
-function fadeRainTo(target, done){
-  if (!rainAudio) return;
-  if (rainFadeTimer){ clearInterval(rainFadeTimer); rainFadeTimer = null; }
-  const diff = target - rainAudio.volume;
-  if (Math.abs(diff) < 0.01){ rainAudio.volume = target; if (done) done(); return; }
-  const step = diff / 24;
-  rainFadeTimer = setInterval(() => {
-    let v = rainAudio.volume + step;
-    if ((step > 0 && v >= target) || (step < 0 && v <= target)){ v = target; clearInterval(rainFadeTimer); rainFadeTimer = null; if (done) done(); }
-    rainAudio.volume = Math.max(0, Math.min(1, v));
+let rainAudio2 = null, rainUrl = '', rainCur = 0, rainCrossing = false, rainCrossTimer = null, rainWatchTimer = null;
+function getRainDeck(){
+  if (!rainAudio2){ rainAudio2 = new Audio(); rainAudio2.preload = 'auto'; if (rainUrl) rainAudio2.src = rainUrl; }
+  return [rainAudio, rainAudio2];
+}
+function fadeEl(el, target, durMs, done){
+  if (el._ft){ clearInterval(el._ft); el._ft = null; }
+  const from = el.volume, diff = target - from;
+  if (Math.abs(diff) < 0.01){ el.volume = target; if (done) done(); return; }
+  const steps = Math.max(Math.round(durMs / 50), 1), step = diff / steps;
+  let n = 0;
+  el._ft = setInterval(() => {
+    n++;
+    if (n >= steps){ clearInterval(el._ft); el._ft = null; el.volume = target; if (done) done(); return; }
+    el.volume = Math.max(0, Math.min(1, from + step * n));
   }, 50);
+}
+function startRainWatch(){
+  if (rainWatchTimer) return;
+  rainWatchTimer = setInterval(() => {
+    if (!rainOn || rainCrossing) return;
+    const deck = getRainDeck(), el = deck[rainCur];
+    if (!el || el.paused || !el.duration) return;
+    if (el.currentTime > el.duration - 3.5) crossfadeRain();
+  }, 400);
+}
+function crossfadeRain(){
+  const deck = getRainDeck(), from = deck[rainCur], to = deck[1 - rainCur];
+  if (!to) return;
+  rainCrossing = true;
+  try { to.currentTime = 0; } catch(e){}
+  to.volume = 0;
+  const p = to.play(); if (p && p.catch) p.catch(() => {});
+  const t0 = Date.now(), D = 3000;
+  rainCrossTimer = setInterval(() => {
+    const pr = Math.min((Date.now() - t0) / D, 1);
+    to.volume = RAIN_VOL * Math.sin(pr * Math.PI / 2);
+    from.volume = RAIN_VOL * Math.cos(pr * Math.PI / 2);
+    if (pr >= 1){
+      clearInterval(rainCrossTimer); rainCrossTimer = null;
+      from.pause();
+      try { from.currentTime = 0; } catch(e){}
+      rainCur = 1 - rainCur;
+      rainCrossing = false;
+    }
+  }, 100);
 }
 function startRainAudio(){
   if (!rainOn || !rainAudio) return;
   if (!rainSrcReady){ ensureRainSrc(); return; }
-  if (rainAudio.paused){
-    rainAudio.volume = 0;
-    const p = rainAudio.play();
-    if (p && p.catch) p.catch(() => {});
-    fadeRainTo(RAIN_VOL);
-  } else if (rainFadeTimer) fadeRainTo(RAIN_VOL);
+  const deck = getRainDeck(), cur = deck[rainCur], other = deck[1 - rainCur];
+  if (rainCrossTimer){ clearInterval(rainCrossTimer); rainCrossTimer = null; rainCrossing = false; }
+  if (other && !other.paused) fadeEl(other, 0, 600, () => { other.pause(); });
+  if (cur.paused){
+    cur.volume = 0;
+    const p = cur.play(); if (p && p.catch) p.catch(() => {});
+    fadeEl(cur, RAIN_VOL, 1200);
+  } else fadeEl(cur, RAIN_VOL, 800);
+  startRainWatch();
 }
 function stopRainAudio(){
-  if (!rainAudio || rainAudio.paused) return;
-  fadeRainTo(0, () => { rainAudio.pause(); });
+  if (!rainAudio) return;
+  if (rainWatchTimer){ clearInterval(rainWatchTimer); rainWatchTimer = null; }
+  if (rainCrossTimer){ clearInterval(rainCrossTimer); rainCrossTimer = null; rainCrossing = false; }
+  getRainDeck().forEach(el => { if (el && !el.paused) fadeEl(el, 0, 1200, () => { el.pause(); }); });
 }
 $('rainChk').checked = rainOn;
 if (rainOn) startRain();

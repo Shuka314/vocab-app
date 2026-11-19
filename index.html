@@ -369,7 +369,7 @@ function nextCard(){
     current = pool[Math.floor(Math.random() * pool.length)];
     const it = current.item;
     currentCloze = makeCloze(it, current.deck);
-    const mixLabel = mode === 'mix' || leechMode ? (ICONS.folder + ' [' + (current.deck === 'en' ? '英語' : '中国語') + ']') : '';
+    const mixLabel = '';
     if (listenMode){
       showListeningFront();
     } else if (currentCloze){
@@ -897,7 +897,7 @@ async function speak(text, deck){
 }
 if ('speechSynthesis' in window){ try { speechSynthesis.getVoices(); } catch(e){} }
 function showListeningFront(){
-  const mixLabel = mode === 'mix' || leechMode ? (ICONS.folder + ' [' + (current.deck === 'en' ? '英語' : '中国語') + ']') : '';
+  const mixLabel = '';
   $('badge').innerHTML = (leechMode ? ICONS.alert + ' 苦手 ' : '') + ICONS.phones + ' 聴き取り ' + mixLabel;
   $('word').innerHTML = ICONS.bigPhones; $('word').style.fontSize = '';
   $('reading').textContent = ''; $('meaning').textContent = ''; $('meaning').style.fontSize = ''; $('example').textContent = '';

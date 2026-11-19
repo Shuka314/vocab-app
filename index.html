@@ -104,12 +104,12 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);outline-
 </head>
 <body>
 <header>
-  <h1>📖 単語帳</h1>
-  <button id="syncPill" class="pill">☁ 未設定</button>
+  <h1><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px" aria-hidden="true"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg> 単語帳</h1>
+  <button id="syncPill" class="pill"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px" aria-hidden="true"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg> 未設定</button>
   <div class="row" style="align-items:center">
-    <label class="chk"><input type="checkbox" id="timerChk" style="width:20px;height:20px"> ⏳30秒</label>
-    <label class="chk"><input type="checkbox" id="listenChk" style="width:20px;height:20px"> 🎧 聴き取り</label>
-    <label class="chk"><input type="checkbox" id="rainChk" style="width:20px;height:20px"> 🌧 雨</label>
+    <label class="chk"><input type="checkbox" id="timerChk" style="width:20px;height:20px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>30秒</label>
+    <label class="chk"><input type="checkbox" id="listenChk" style="width:20px;height:20px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px" aria-hidden="true"><path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/></svg> 聴き取り</label>
+    <label class="chk"><input type="checkbox" id="rainChk" style="width:20px;height:20px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px" aria-hidden="true"><line x1="16" y1="13" x2="16" y2="21"/><line x1="8" y1="13" x2="8" y2="21"/><line x1="12" y1="15" x2="12" y2="23"/><path d="M20 16.58A5 5 0 0 0 18 7h-1.26A8 8 0 1 0 4 15.25"/></svg> 雨</label>
     <select id="themeSel">
       <option value="">ダーク</option>
       <option value="rpg">レトロ</option>
@@ -127,7 +127,7 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);outline-
   <button data-mode="en" class="on">英語</button>
   <button data-mode="cn">中国語</button>
   <button data-mode="mix">🔄 混合</button>
-  <button data-mode="list">⚙ 一覧</button>
+  <button data-mode="list"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg> 一覧</button>
 </div>
 
 <main>
@@ -143,8 +143,8 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);outline-
       <div class="hint" id="hint">タップで意味を表示</div>
     </div>
     <div class="speak-row">
-      <button id="speakWord" style="display:none">🔊 単語</button>
-      <button id="speakEx" style="display:none">🔊 例文</button>
+      <button id="speakWord" style="display:none"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px" aria-hidden="true"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg> 単語</button>
+      <button id="speakEx" style="display:none"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px" aria-hidden="true"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg> 例文</button>
     </div>
     <div class="grades">
       <button class="g-hard" id="btnHard">難しい</button>
@@ -160,8 +160,8 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);outline-
     <div class="row">
       <button id="deckEn">英語の単語</button>
       <button id="deckCn">中国語の単語</button>
-      <button id="leechFilter">⚠ 苦手だけ表示</button>
-      <button id="leechStudy">⚠ 苦手だけ学習</button>
+      <button id="leechFilter"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px" aria-hidden="true"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> 苦手だけ表示</button>
+      <button id="leechStudy"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px" aria-hidden="true"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> 苦手だけ学習</button>
     </div>
     <div class="list" id="list"></div>
     <div class="row">
@@ -169,11 +169,11 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);outline-
       <button id="expJson">📤 JSON出力（全データ）</button>
       <button id="impJsonBtn">📥 JSON取込</button>
       <input type="file" id="impJson" accept=".json,application/json" style="display:none">
-      <button id="resetBtn">☁ GitHubから再取得</button>
+      <button id="resetBtn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px" aria-hidden="true"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg> GitHubから再取得</button>
     </div>
 
     <form class="add" id="ghForm">
-      <b>☁ GitHub同期</b> <span class="note">同期方式 v3.1 ／ 機能 v8（めくり音声・自動テーマ・雨）</span>
+      <b><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px" aria-hidden="true"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg> GitHub同期</b> <span class="note">同期方式 v3.1 ／ 機能 v9（リアル雨・雨音・SVGアイコン）</span>
       <input id="ghOwner" placeholder="GitHubユーザー名（owner）">
       <input id="ghRepo" placeholder="リポジトリ名（Private）">
       <input id="ghToken" type="password" placeholder="トークン（Contents: Read and write）">
@@ -227,13 +227,14 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);outline-
       <input id="eExample" placeholder="例文">
       <input id="eExReading" placeholder="例文ピンイン（中国語のみ）">
       <button type="submit">保存する</button>
-      <button type="button" id="eDelete" class="danger">🗑 この単語を削除</button>
+      <button type="button" id="eDelete" class="danger"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg> この単語を削除</button>
     </form>
   </div>
 </div>
 <button id="fabAdd" class="fab" title="単語を追加">＋</button>
 
 <canvas id="rainCv" style="display:none"></canvas>
+<audio id="rainAudio" loop preload="none" style="display:none"></audio>
 <script defer src="https://cdn.jsdelivr.net/npm/pinyin-pro@3.26.0/dist/index.js"></script>
 <script>
 const INITIAL = { en: [], cn: [] };
@@ -255,6 +256,19 @@ try { listenMode = localStorage.getItem('vocabListen') === '1'; } catch(e){}
 let timerId = null, timeLeft = 30;
 
 const $ = id => document.getElementById(id);
+const svgIc = (p, s) => '<svg width="' + (s || 15) + '" height="' + (s || 15) + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px" aria-hidden="true">' + p + '</svg>';
+const ICONS = {
+  clock: svgIc('<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>'),
+  phones: svgIc('<path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/>'),
+  bigPhones: svgIc('<path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/>', 54),
+  alert: svgIc('<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>'),
+  cloud: svgIc('<path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/>'),
+  trash: svgIc('<polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/>'),
+  flag: svgIc('<path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/>'),
+  refresh: svgIc('<polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>'),
+  folder: svgIc('<path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>'),
+  up: svgIc('<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>')
+};
 const decks = () => mode === 'mix' ? ['en','cn'] : [mode];
 function dueItems(){
   if (leechMode){
@@ -269,20 +283,20 @@ function dueItems(){
 function statsText(){
   if (leechMode){
     let n = 0; ['en','cn'].forEach(dk => data[dk].forEach(it => { if ((it.lapses || 0) >= LEECH_MIN) n++; }));
-    return '⚠ 苦手ドリル（難しい×' + LEECH_MIN + '以上）: ' + n + '件';
+    return ICONS.alert + ' 苦手ドリル（難しい×' + LEECH_MIN + '以上）: ' + n + '件';
   }
   const t = todayStr();
   let due = 0, total = 0;
   decks().forEach(dk => { total += data[dk].length; due += data[dk].filter(it => (it.next_review || t) <= t).length; });
-  return '⚔ 本日の要復習: ' + due + '件 ／ 総単語数: ' + total + '件';
+  return ICONS.flag + ' 本日の要復習: ' + due + '件 ／ 総単語数: ' + total + '件';
 }
 function stopTimer(){ if (timerId){ clearInterval(timerId); timerId = null; } $('timer').textContent=''; }
 function startTimer(){
-  stopTimer(); timeLeft = 30; $('timer').textContent = '⏳ 00:30';
+  stopTimer(); timeLeft = 30; $('timer').innerHTML = ICONS.clock + ' 00:30';
   timerId = setInterval(() => {
     timeLeft--;
-    if (timeLeft > 0){ $('timer').textContent = '⏳ 00:' + String(timeLeft).padStart(2,'0'); }
-    else { stopTimer(); $('timer').textContent = '⏳ タイムアップ！'; grade('hard'); }
+    if (timeLeft > 0){ $('timer').innerHTML = ICONS.clock + ' 00:' + String(timeLeft).padStart(2,'0'); }
+    else { stopTimer(); $('timer').innerHTML = ICONS.clock + ' タイムアップ！'; grade('hard'); }
   }, 1000);
 }
 function cardIn(){ const c = $('card'); c.classList.remove('anim-in'); void c.offsetWidth; c.classList.add('anim-in'); }
@@ -296,13 +310,13 @@ function nextCard(){
       $('badge').textContent = ''; $('word').textContent = '🎉 苦手単語はありません';
       $('reading').textContent = ''; $('meaning').textContent = ''; $('example').textContent = '';
       $('hint').textContent = '';
-      setGrades(false); $('stats').textContent = statsText(); stopTimer(); updateSpeakBtns(); cardIn(); return;
+      setGrades(false); $('stats').innerHTML = statsText(); stopTimer(); updateSpeakBtns(); cardIn(); return;
     }
     if (totalAll === 0){
       $('badge').textContent = ''; $('word').textContent = '単語がありません';
       $('reading').textContent = ''; $('meaning').textContent = ''; $('example').textContent = '';
-      $('hint').textContent = ghReady() ? '☁ 同期中…少し待ってね' : '「⚙ 一覧」タブで GitHub同期を設定してね';
-      setGrades(false); $('stats').textContent = statsText(); stopTimer(); updateSpeakBtns(); return;
+      $('hint').textContent = ghReady() ? '同期中…少し待ってね' : '「一覧」タブで GitHub同期を設定してね';
+      setGrades(false); $('stats').innerHTML = statsText(); stopTimer(); updateSpeakBtns(); return;
     }
     $('badge').textContent = ''; $('word').textContent = '🎉 TODAY CLEAR!';
     $('reading').textContent = ''; $('meaning').textContent = ''; $('example').textContent = '';
@@ -314,17 +328,17 @@ function nextCard(){
     current = pool[Math.floor(Math.random() * pool.length)];
     const it = current.item;
     currentCloze = makeCloze(it, current.deck);
-    const mixLabel = mode === 'mix' || leechMode ? ('📂 [' + (current.deck === 'en' ? '英語' : '中国語') + ']') : '';
+    const mixLabel = mode === 'mix' || leechMode ? (ICONS.folder + ' [' + (current.deck === 'en' ? '英語' : '中国語') + ']') : '';
     if (listenMode){
       showListeningFront();
     } else if (currentCloze){
-      $('badge').textContent = (leechMode ? '⚠ 苦手 ' : '') + '穴埋め ' + mixLabel;
+      $('badge').innerHTML = (leechMode ? ICONS.alert + ' 苦手 ' : '') + '穴埋め ' + mixLabel;
       $('word').textContent = currentCloze;
       $('word').style.fontSize = '23px';
       $('reading').textContent = ''; $('meaning').textContent = it.meaning || ''; $('meaning').style.fontSize = '17px'; $('example').textContent = '';
       $('hint').textContent = 'タップで答え合わせ';
     } else {
-      $('badge').textContent = (leechMode ? '⚠ 苦手 ' : '') + mixLabel;
+      $('badge').innerHTML = (leechMode ? ICONS.alert + ' 苦手 ' : '') + mixLabel;
       $('word').textContent = it.word;
       $('word').style.fontSize = '';
       $('reading').textContent = ''; $('meaning').textContent = ''; $('meaning').style.fontSize = ''; $('example').textContent = '';
@@ -333,7 +347,7 @@ function nextCard(){
     setGrades(true);
     if ($('timerChk').checked) startTimer();
   }
-  $('stats').textContent = statsText();
+  $('stats').innerHTML = statsText();
   updateSpeakBtns();
   autoSpeakListening();
   cardIn();
@@ -417,49 +431,86 @@ try { const th = localStorage.getItem('vocabTheme'); if (th !== null){ document.
 
 // ===== 雨エフェクト（ガラスを滴る雨） =====
 const rainCv = $('rainCv'), rctx = rainCv.getContext('2d');
-let rainOn = true, rainRaf = null, rainW = 0, rainH = 210, drops = [], trails = [];
+const rainAudio = $('rainAudio');
+let rainOn = true, rainRaf = null, rainW = 0, rainH = 210, drops = [], trails = [], mists = [];
 try { rainOn = localStorage.getItem('vocabRain') !== '0'; } catch(e){}
+if (rainAudio) rainAudio.volume = 0.32;
 function sizeRain(){
   const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
   rainW = window.innerWidth; rainH = 210;
   rainCv.width = Math.floor(rainW * dpr); rainCv.height = Math.floor(rainH * dpr);
   rctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  mists = [];
+  for (let i = 0; i < 130; i++) mists.push({ x: Math.random() * rainW, y: Math.random() * rainH, r: 0.4 + Math.random() * 1.0, ph: Math.random() * 6.28, sp: 0.2 + Math.random() * 0.6 });
 }
-function drawDrop(x, y, r){
-  const g = rctx.createRadialGradient(x - r * 0.3, y - r * 0.3, r * 0.1, x, y, r);
-  g.addColorStop(0, 'rgba(255,255,255,0.30)');
-  g.addColorStop(0.7, 'rgba(200,225,255,0.10)');
-  g.addColorStop(1, 'rgba(160,200,235,0.18)');
+function drawRealDrop(x, y, r){
+  const g = rctx.createRadialGradient(x, y - r * 0.4, r * 0.1, x, y, r);
+  g.addColorStop(0, 'rgba(255,255,255,0.03)');
+  g.addColorStop(0.72, 'rgba(205,228,246,0.06)');
+  g.addColorStop(1, 'rgba(235,246,255,0.22)');
   rctx.fillStyle = g;
   rctx.beginPath(); rctx.arc(x, y, r, 0, 6.2832); rctx.fill();
+  rctx.beginPath(); rctx.arc(x, y, r * 0.8, Math.PI * 0.3, Math.PI * 0.7);
+  rctx.strokeStyle = 'rgba(255,255,255,0.35)'; rctx.lineWidth = Math.max(r * 0.16, 0.5); rctx.stroke();
+  rctx.beginPath(); rctx.arc(x - r * 0.34, y - r * 0.38, Math.max(r * 0.15, 0.4), 0, 6.2832);
+  rctx.fillStyle = 'rgba(255,255,255,0.5)'; rctx.fill();
 }
 function rainStep(){
   if (!rainOn){ rainRaf = null; return; }
   rctx.clearRect(0, 0, rainW, rainH);
-  if (drops.length < 42 && Math.random() < 0.35)
-    drops.push({ x: Math.random() * rainW, y: Math.random() * 120 + 4, r: 0.7, max: 2.4 + Math.random() * 2.2, vy: 0, ph: Math.random() * 6.28 });
-  trails = trails.filter(t => (t.life -= 0.012) > 0);
-  trails.forEach(t => { rctx.globalAlpha = Math.max(t.life, 0) * 0.7; drawDrop(t.x, t.y, t.r); });
+  const t = performance.now() / 1000;
+  mists.forEach(m => {
+    const a = 0.05 + 0.045 * (0.5 + 0.5 * Math.sin(m.ph + t * m.sp));
+    rctx.beginPath(); rctx.arc(m.x, m.y, m.r, 0, 6.2832);
+    rctx.fillStyle = 'rgba(210,232,248,' + a.toFixed(3) + ')'; rctx.fill();
+  });
+  if (drops.length < 24 && Math.random() < 0.16)
+    drops.push({ x: Math.random() * rainW, y: 6 + Math.random() * (rainH - 12), r: 0.6, max: 1.9 + Math.random() * 1.7, vy: 0, ph: Math.random() * 6.28, run: false });
+  trails = trails.filter(tr => (tr.life -= 0.02) > 0);
+  trails.forEach(tr => { rctx.globalAlpha = Math.max(tr.life, 0) * 0.55; drawRealDrop(tr.x, tr.y, tr.r); });
   rctx.globalAlpha = 1;
-  drops = drops.filter(d => d.y < rainH + 6);
+  drops = drops.filter(d => d.y < rainH + 8);
   drops.forEach(d => {
-    if (d.r < d.max){ d.r += 0.012; }
-    else {
-      d.vy = Math.min(d.vy + 0.045, 1.5 + d.max * 0.35);
+    if (!d.run){
+      if (d.r < d.max) d.r += 0.006;
+      else if (Math.random() < 0.004) d.run = true;
+    } else {
+      d.vy = Math.min(d.vy + 0.09, 2.6 + d.max * 0.5);
       d.y += d.vy;
-      d.x += Math.sin(d.y * 0.05 + d.ph) * 0.35;
-      d.r = Math.max(d.r - 0.006, 1.1);
-      if (Math.random() < 0.3) trails.push({ x: d.x, y: d.y - d.r, r: d.r * 0.45, life: 0.9 });
+      d.x += Math.sin(d.y * 0.06 + d.ph) * 0.3;
+      d.r = Math.max(d.r - 0.008, 0.9);
+      if (Math.random() < 0.45) trails.push({ x: d.x + (Math.random() - 0.5) * 1.5, y: d.y - d.r - 1, r: d.r * 0.38, life: 0.85 });
     }
-    drawDrop(d.x, d.y, d.r);
+    drawRealDrop(d.x, d.y, d.r);
   });
   rainRaf = requestAnimationFrame(rainStep);
 }
 function startRain(){ sizeRain(); rainCv.style.display = ''; if (rainRaf == null) rainRaf = requestAnimationFrame(rainStep); }
 function stopRain(){ rainCv.style.display = 'none'; if (rainRaf != null){ cancelAnimationFrame(rainRaf); rainRaf = null; } }
+let rainSrcReady = false, rainSrcTried = false;
+function ensureRainSrc(){
+  if (rainSrcTried || !rainAudio) return;
+  rainSrcTried = true;
+  fetch('rain_b64.txt').then(r => r.text()).then(t => {
+    const bin = atob(t.replace(/\s/g, ''));
+    const arr = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+    rainAudio.src = URL.createObjectURL(new Blob([arr], { type: 'audio/mpeg' }));
+    rainSrcReady = true;
+    startRainAudio();
+  }).catch(() => {});
+}
+function startRainAudio(){
+  if (!rainOn || !rainAudio) return;
+  if (!rainSrcReady){ ensureRainSrc(); return; }
+  if (rainAudio.paused){ const p = rainAudio.play(); if (p && p.catch) p.catch(() => {}); }
+}
+function stopRainAudio(){ if (rainAudio && !rainAudio.paused) rainAudio.pause(); }
 $('rainChk').checked = rainOn;
 if (rainOn) startRain();
-$('rainChk').addEventListener('change', e => { rainOn = e.target.checked; try { localStorage.setItem('vocabRain', rainOn ? '1' : '0'); } catch(err){} if (rainOn) startRain(); else stopRain(); });
+document.addEventListener('pointerdown', startRainAudio);
+$('rainChk').addEventListener('change', e => { rainOn = e.target.checked; try { localStorage.setItem('vocabRain', rainOn ? '1' : '0'); } catch(err){} if (rainOn){ startRain(); startRainAudio(); } else { stopRain(); stopRainAudio(); } });
+document.addEventListener('visibilitychange', () => { if (document.hidden) stopRainAudio(); else startRainAudio(); });
 window.addEventListener('resize', () => { if (rainOn) sizeRain(); });
 
 document.querySelectorAll('.tabs button').forEach(b => b.addEventListener('click', () => {
@@ -484,8 +535,8 @@ function renderList(anim){
   const q = $('search').value.trim().toLowerCase();
   const items = data[listDeck];
   let leechN = 0; ['en','cn'].forEach(dk => data[dk].forEach(it => { if ((it.lapses || 0) >= LEECH_MIN) leechN++; }));
-  $('leechStudy').textContent = '⚠ 苦手だけ学習（' + leechN + '）';
-  $('leechFilter').textContent = leechFilterOn ? '⚠ 苦手だけ表示中（解除）' : '⚠ 苦手だけ表示';
+  $('leechStudy').innerHTML = ICONS.alert + ' 苦手だけ学習（' + leechN + '）';
+  $('leechFilter').innerHTML = ICONS.alert + (leechFilterOn ? ' 苦手だけ表示中（解除）' : ' 苦手だけ表示');
   $('addTitle').textContent = '＋ 単語を追加（' + (listDeck === 'en' ? '英語' : '中国語') + '）';
   $('fReadingRow').style.display = listDeck === 'cn' ? '' : 'none';
   $('fExReading').style.display = listDeck === 'cn' ? '' : 'none';
@@ -504,9 +555,9 @@ function renderList(anim){
     div.querySelector('.sub').textContent = sub + (it.example ? '\nEx) ' + it.example : '');
     const badges = [];
     if (makeCloze(it, listDeck)) badges.push('穴埋め可');
-    if ((it.lapses || 0) >= LEECH_MIN) badges.push('⚠苦手');
+    if ((it.lapses || 0) >= LEECH_MIN) badges.push(ICONS.alert + '苦手');
     if ((it.lapses || 0) > 0) badges.push('難しい×' + it.lapses);
-    div.querySelector('.meta').textContent = (badges.length ? badges.join(' ') + ' ／ ' : '') + '間隔 ' + (it.interval || 0) + '日 ／ 次回 ' + (it.next_review || '');
+    div.querySelector('.meta').innerHTML = (badges.length ? badges.join(' ') + ' ／ ' : '') + '間隔 ' + (it.interval || 0) + '日 ／ 次回 ' + (it.next_review || '');
     div.addEventListener('click', () => editItem(idx));
     let pressTimer = null;
     div.addEventListener('touchstart', () => { pressTimer = setTimeout(() => { openEdit(listDeck, items[idx], 'list'); }, 700); }, {passive:true});
@@ -529,7 +580,7 @@ $('leechStudy').addEventListener('click', () => {
 
 let editCtx = null, delArmed = false;
 function splitTilde(s){ s = s || ''; const i = s.indexOf('~'); return i < 0 ? [s, ''] : [s.slice(0, i), s.slice(i + 1)]; }
-function resetDelBtn(){ delArmed = false; $('eDelete').textContent = '🗑 この単語を削除'; }
+function resetDelBtn(){ delArmed = false; $('eDelete').innerHTML = ICONS.trash + ' この単語を削除'; }
 function openEdit(deck, item, origin){
   if (origin === 'card') stopTimer();
   editCtx = { deck: deck, item: item, origin: origin };
@@ -565,7 +616,7 @@ $('editForm').addEventListener('submit', e => {
 });
 $('eDelete').addEventListener('click', () => {
   if (!editCtx) return;
-  if (!delArmed){ delArmed = true; $('eDelete').textContent = '⚠ 本当に削除する？（もう一度タップ）'; return; }
+  if (!delArmed){ delArmed = true; $('eDelete').innerHTML = ICONS.alert + ' 本当に削除する？（もう一度タップ）'; return; }
   const deck = editCtx.deck, item = editCtx.item, origin = editCtx.origin;
   const arr = data[deck]; const i = arr.indexOf(item);
   if (i >= 0) arr.splice(i, 1);
@@ -657,17 +708,31 @@ $('resetBtn').addEventListener('click', async () => { if (!confirm('GitHub上の
 
 // ===== 音声再生 =====
 let ttsAudio = null;
+function getTtsAudio(){ if (!ttsAudio){ ttsAudio = new Audio(); ttsAudio.preload = 'auto'; } return ttsAudio; }
+let audioUnlocked = false;
+function unlockAudio(){
+  if (audioUnlocked) return;
+  audioUnlocked = true;
+  try {
+    const a = getTtsAudio();
+    a.src = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=';
+    const p = a.play();
+    if (p && p.catch) p.catch(() => {});
+  } catch(e){}
+  try { const u = new SpeechSynthesisUtterance(''); u.volume = 0; speechSynthesis.speak(u); } catch(e){}
+}
+document.addEventListener('pointerdown', unlockAudio);
 function playTTSUrl(url){
   return new Promise((resolve, reject) => {
     try {
-      if (ttsAudio){ try { ttsAudio.pause(); } catch(e){} }
-      const a = new Audio(url);
-      ttsAudio = a;
+      const a = getTtsAudio();
+      try { a.pause(); } catch(e){}
       let done = false;
       const ok = () => { if (!done){ done = true; resolve(); } };
       const ng = () => { if (!done){ done = true; reject(new Error('tts')); } };
-      a.addEventListener('playing', ok);
-      a.addEventListener('error', ng);
+      a.onplaying = ok;
+      a.onerror = ng;
+      a.src = url;
       const pr = a.play();
       if (pr && pr.then) pr.then(ok).catch(ng);
       setTimeout(() => { if (!done && a.readyState === 0 && a.paused) ng(); }, 7000);
@@ -784,9 +849,9 @@ async function speak(text, deck){
 }
 if ('speechSynthesis' in window){ try { speechSynthesis.getVoices(); } catch(e){} }
 function showListeningFront(){
-  const mixLabel = mode === 'mix' || leechMode ? ('📂 [' + (current.deck === 'en' ? '英語' : '中国語') + ']') : '';
-  $('badge').textContent = (leechMode ? '⚠ 苦手 ' : '') + '🎧 聴き取り ' + mixLabel;
-  $('word').textContent = '🎧'; $('word').style.fontSize = '';
+  const mixLabel = mode === 'mix' || leechMode ? (ICONS.folder + ' [' + (current.deck === 'en' ? '英語' : '中国語') + ']') : '';
+  $('badge').innerHTML = (leechMode ? ICONS.alert + ' 苦手 ' : '') + ICONS.phones + ' 聴き取り ' + mixLabel;
+  $('word').innerHTML = ICONS.bigPhones; $('word').style.fontSize = '';
   $('reading').textContent = ''; $('meaning').textContent = ''; $('meaning').style.fontSize = ''; $('example').textContent = '';
   $('hint').textContent = '音を聞いて意味を思い出してね（タップで答え合わせ）';
 }
@@ -863,7 +928,7 @@ function makeCloze(item, deck){
 const GH_FILES = { en: 'english_vocab.json', cn: 'chinese_vocab.json' };
 let ghCfg = null;
 try { ghCfg = JSON.parse(localStorage.getItem('vocabGhCfg') || 'null'); } catch(e){}
-function ghStatus(msg){ const el = $('ghStatus'); if (el) el.textContent = msg; }
+function ghStatus(msg){ const el = $('ghStatus'); if (el) el.innerHTML = msg.replace(/^☁ /, ICONS.cloud + ' ').replace(/^⏳ /, ICONS.refresh + ' ').replace(/^⚠ /, ICONS.alert + ' '); }
 function ghReady(){ return !!(ghCfg && ghCfg.owner && ghCfg.repo && ghCfg.token); }
 function b64enc(str){ return btoa(unescape(encodeURIComponent(str))); }
 function b64dec(b64){ return decodeURIComponent(escape(atob(b64.replace(/\s/g, '')))); }
@@ -884,11 +949,11 @@ let syncBusy = false, syncErr = '', lastPull = 0;
 let syncNotes = [];
 function syncUi(){
   const p = $('syncPill'); if (!p) return;
-  if (!ghReady()) p.textContent = '☁ 未設定';
-  else if (syncBusy) p.textContent = '⏳ 同期中…';
-  else if (syncErr) p.textContent = '⚠ 失敗（タップで再試行）';
-  else if (anyPending()) p.textContent = '📤 未送信あり（タップで同期）';
-  else p.textContent = '☁ 同期済み';
+  if (!ghReady()) p.innerHTML = ICONS.cloud + ' 未設定';
+  else if (syncBusy) p.innerHTML = ICONS.refresh + ' 同期中…';
+  else if (syncErr) p.innerHTML = ICONS.alert + ' 失敗（タップで再試行）';
+  else if (anyPending()) p.innerHTML = ICONS.up + ' 未送信あり（タップで同期）';
+  else p.innerHTML = ICONS.cloud + ' 同期済み';
 }
 
 async function ghApi(method, file, payload){

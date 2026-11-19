@@ -161,7 +161,7 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);outline-
   </section>
 
   <section id="listView" class="view">
-    <input id="search" type="search" placeholder="🔍 検索（単語・意味・例文）">
+    <input id="search" type="search" placeholder="検索（単語・意味・例文）">
     <div class="ret" id="retention"></div>
     <div class="row">
       <button id="deckEn">英語の単語</button>
@@ -171,9 +171,9 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);outline-
     </div>
     <div class="list" id="list"></div>
     <div class="row">
-      <button id="expCsv">📤 CSV出力</button>
-      <button id="expJson">📤 JSON出力（全データ）</button>
-      <button id="impJsonBtn">📥 JSON取込</button>
+      <button id="expCsv"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> CSV出力</button>
+      <button id="expJson"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> JSON出力（全データ）</button>
+      <button id="impJsonBtn"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> JSON取込</button>
       <input type="file" id="impJson" accept=".json,application/json" style="display:none">
       <button id="resetBtn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px" aria-hidden="true"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg> GitHubから再取得</button>
     </div>
@@ -274,7 +274,8 @@ const ICONS = {
   flag: svgIc('<path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/>'),
   refresh: svgIc('<polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>'),
   folder: svgIc('<path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>'),
-  up: svgIc('<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>')
+  up: svgIc('<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>'),
+  chart: svgIc('<line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>')
 };
 const decks = () => mode === 'mix' ? ['en','cn'] : [mode];
 function dueItems(){
@@ -700,7 +701,7 @@ function renderRetention(){
   const buckets = [ ['今日・これから', 0, 0], ['1〜3日', 1, 3], ['4〜7日', 4, 7], ['8〜30日', 8, 30], ['31日〜（定着）', 31, 1e9] ];
   const counts = buckets.map(([ , lo, hi]) => items.filter(it => { const v = it.interval || 0; return v >= lo && v <= hi; }).length);
   const max = Math.max(1, ...counts);
-  $('retention').innerHTML = '<div class="rt">📊 定着度（' + (listDeck === 'en' ? '英語' : '中国語') + '・復習間隔の分布）</div>' + buckets.map((b, i) =>
+  $('retention').innerHTML = '<div class="rt">' + ICONS.chart + ' 定着度（' + (listDeck === 'en' ? '英語' : '中国語') + '・復習間隔の分布）</div>' + buckets.map((b, i) =>
     '<div class="rr"><div class="rl">' + b[0] + '</div><div class="rb"><div class="rf" style="width:' + Math.round(counts[i] * 100 / max) + '%"></div></div><div class="rc">' + counts[i] + '語</div></div>').join('');
 }
 function renderList(anim){
@@ -1102,7 +1103,7 @@ function makeCloze(item, deck){
 const GH_FILES = { en: 'english_vocab.json', cn: 'chinese_vocab.json' };
 let ghCfg = null;
 try { ghCfg = JSON.parse(localStorage.getItem('vocabGhCfg') || 'null'); } catch(e){}
-function ghStatus(msg){ const el = $('ghStatus'); if (el) el.innerHTML = msg.replace(/^☁ /, ICONS.cloud + ' ').replace(/^⏳ /, ICONS.refresh + ' ').replace(/^⚠ /, ICONS.alert + ' '); }
+function ghStatus(msg){ const el = $('ghStatus'); if (el) el.innerHTML = msg.replace(/^☁ /, ICONS.cloud + ' ').replace(/^⏳ /, ICONS.refresh + ' ').replace(/^⚠ /, ICONS.alert + ' ').replace(/^📤 /, ICONS.up + ' '); }
 function ghReady(){ return !!(ghCfg && ghCfg.owner && ghCfg.repo && ghCfg.token); }
 function b64enc(str){ return btoa(unescape(encodeURIComponent(str))); }
 function b64dec(b64){ return decodeURIComponent(escape(atob(b64.replace(/\s/g, '')))); }

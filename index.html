@@ -174,7 +174,7 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);outline-
     </div>
 
     <form class="add" id="ghForm">
-      <b><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px" aria-hidden="true"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg> GitHub同期</b> <span class="note">同期方式 v3.1 ／ 機能 v10（タイマー一時停止・学習時間の記録）</span>
+      <b><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px" aria-hidden="true"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg> GitHub同期</b> <span class="note">同期方式 v3.1 ／ 機能 v11（雨音フェード・復習数の記録）</span>
       <input id="ghOwner" placeholder="GitHubユーザー名（owner）">
       <input id="ghRepo" placeholder="リポジトリ名（Private）">
       <input id="ghToken" type="password" placeholder="トークン（Contents: Read and write）">
@@ -296,7 +296,7 @@ function stopTimer(){ if (timerId){ clearInterval(timerId); timerId = null; } ti
 function tickTimer(){
   timeLeft--;
   if (timeLeft > 0){ $('timer').innerHTML = ICONS.clock + ' 00:' + String(timeLeft).padStart(2,'0'); }
-  else { stopTimer(); $('timer').innerHTML = ICONS.clock + ' タイムアップ！'; grade('hard'); }
+  else { stopTimer(); $('timer').innerHTML = ICONS.clock + ' タイムアップ！'; grade('hard', true); }
 }
 function startTimer(){
   stopTimer(); timeLeft = 30; $('timer').innerHTML = ICONS.clock + ' 00:30';
@@ -315,6 +315,15 @@ function jstDateStr(d){
 let studyMap = {};
 try { studyMap = JSON.parse(localStorage.getItem(STUDY_KEY) || '{}') || {}; } catch(e){ studyMap = {}; }
 { const keys = Object.keys(studyMap).sort(); if (keys.length > 400) { keys.slice(0, keys.length - 400).forEach(k => delete studyMap[k]); } }
+const REVIEW_KEY = 'vocabReviewCountV1';
+let reviewCountMap = {};
+try { reviewCountMap = JSON.parse(localStorage.getItem(REVIEW_KEY) || '{}') || {}; } catch(e){ reviewCountMap = {}; }
+function bumpDailyReview(){
+  const k = jstDateStr();
+  reviewCountMap[k] = (reviewCountMap[k] || 0) + 1;
+  try { localStorage.setItem(REVIEW_KEY, JSON.stringify(reviewCountMap)); } catch(e){}
+  renderStudyTime();
+}
 let studyLast = Date.now();
 function fmtDur(sec){
   sec = Math.floor(sec || 0);
@@ -323,7 +332,7 @@ function fmtDur(sec){
 }
 function renderStudyTime(){
   const el = $('studyTime'); if (!el) return;
-  el.textContent = '今日の学習時間： ' + fmtDur(studyMap[jstDateStr()] || 0);
+  el.textContent = '今日の学習時間： ' + fmtDur(studyMap[jstDateStr()] || 0) + ' ／ 復習： ' + (reviewCountMap[jstDateStr()] || 0) + '語';
 }
 function studyTick(){
   const now = Date.now();
@@ -434,7 +443,7 @@ function toggle(){
     }
   }
 }
-function grade(kind){
+function grade(kind, isAuto){
   if (!current) return;
   stopTimer();
   const it = current.item; const cur = it.interval || 0;
@@ -442,6 +451,7 @@ function grade(kind){
   else if (kind === 'normal'){ const n = cur === 0 ? 1 : cur * 2; it.interval = n; it.next_review = addDays(n); }
   else { const n = cur === 0 ? 3 : cur * 4; it.interval = n; it.next_review = addDays(n); }
   bumpReview();
+  if (!isAuto) bumpDailyReview();
   save(); markDirty(current.deck);
   setGrades(false);
   const cardEl = $('card');
@@ -548,12 +558,34 @@ function ensureRainSrc(){
     use(t);
   }).catch(() => {});
 }
+const RAIN_VOL = 0.32;
+let rainFadeTimer = null;
+function fadeRainTo(target, done){
+  if (!rainAudio) return;
+  if (rainFadeTimer){ clearInterval(rainFadeTimer); rainFadeTimer = null; }
+  const diff = target - rainAudio.volume;
+  if (Math.abs(diff) < 0.01){ rainAudio.volume = target; if (done) done(); return; }
+  const step = diff / 24;
+  rainFadeTimer = setInterval(() => {
+    let v = rainAudio.volume + step;
+    if ((step > 0 && v >= target) || (step < 0 && v <= target)){ v = target; clearInterval(rainFadeTimer); rainFadeTimer = null; if (done) done(); }
+    rainAudio.volume = Math.max(0, Math.min(1, v));
+  }, 50);
+}
 function startRainAudio(){
   if (!rainOn || !rainAudio) return;
   if (!rainSrcReady){ ensureRainSrc(); return; }
-  if (rainAudio.paused){ const p = rainAudio.play(); if (p && p.catch) p.catch(() => {}); }
+  if (rainAudio.paused){
+    rainAudio.volume = 0;
+    const p = rainAudio.play();
+    if (p && p.catch) p.catch(() => {});
+    fadeRainTo(RAIN_VOL);
+  } else if (rainFadeTimer) fadeRainTo(RAIN_VOL);
 }
-function stopRainAudio(){ if (rainAudio && !rainAudio.paused) rainAudio.pause(); }
+function stopRainAudio(){
+  if (!rainAudio || rainAudio.paused) return;
+  fadeRainTo(0, () => { rainAudio.pause(); });
+}
 $('rainChk').checked = rainOn;
 if (rainOn) startRain();
 document.addEventListener('pointerdown', startRainAudio);

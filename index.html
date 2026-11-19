@@ -12,6 +12,11 @@
 }
 body.rpg{--bg:#0f0f1a;--card:#1a1a2e;--border:#3b3b6d;--text:#f0f0f5;--muted:#9494b8;--accent:#ffd700;--success:#00ffcc;--warning:#ff4757;--normal:#3498db;--input:#242438}
 body.souls{--bg:#12100e;--card:#1c1917;--border:#4a413b;--text:#e6dbc9;--muted:#8c8275;--accent:#e65100;--success:#48c9b0;--warning:#a93226;--normal:#d35400;--input:#282420}
+body.persona{--bg:#0c0c0c;--card:#191919;--border:#3d3d3d;--text:#f5f5f5;--muted:#9c9c9c;--accent:#e60012;--success:#2fd673;--warning:#ff7a1a;--normal:#57a7ff;--input:#242424}
+body.zelda{--bg:#0d1b1e;--card:#173034;--border:#2f4f52;--text:#e9f2e7;--muted:#96ada0;--accent:#5ec8e5;--success:#8bc34a;--warning:#ef5350;--normal:#d9b45b;--input:#1f3d40}
+body.genshin{--bg:#f2ecdc;--card:#fbf8ef;--border:#d9cfb4;--text:#3c4048;--muted:#8d8672;--accent:#a87f2d;--success:#4e9a68;--warning:#cf5246;--normal:#5b7fa6;--input:#fffdf4}
+body.nier{--bg:#d3cfba;--card:#e2ddc9;--border:#a8a38d;--text:#454138;--muted:#7c7767;--accent:#8c4a32;--success:#5f7052;--warning:#b03a2e;--normal:#5d6d7e;--input:#eae6d2}
+body.doubutsu{--bg:#f6f1de;--card:#fffdf0;--border:#cfdfb4;--text:#59523d;--muted:#9c9377;--accent:#4f9e5f;--success:#35a06b;--warning:#e0684b;--normal:#4a90c2;--input:#fdfaf0}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;padding:0}
 body{background:var(--bg);color:var(--text);font-family:-apple-system,"Hiragino Kaku Gothic ProN","Noto Sans JP",sans-serif;min-height:100vh;display:flex;flex-direction:column}
@@ -68,6 +73,29 @@ form.add button{background:var(--input);color:var(--accent);border:1px solid var
 .split-row input{flex:1;min-width:0}
 .tilde-sep{color:var(--muted);font-weight:700;padding:0 2px}
 .speak-row button{flex:1;padding:10px;border-radius:10px;border:1px solid var(--border);background:var(--card);color:var(--accent);font-size:14px;font-weight:700;cursor:pointer}
+#studyView{perspective:900px}
+button{transition:transform .08s ease,background-color .2s ease,border-color .2s ease,color .2s ease}
+button:active{transform:scale(.965)}
+.grades button:active{transform:scale(.93)}
+.fab:active{transform:scale(.9)}
+body,.card,.item,form.add,.ret,.pill{transition:background-color .35s ease,border-color .35s ease,color .35s ease}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);outline-offset:1px}
+@keyframes cardIn{from{opacity:0;transform:translateY(14px) scale(.98)}to{opacity:1;transform:translateY(0) scale(1)}}
+.anim-in{animation:cardIn .28s cubic-bezier(.2,.9,.25,1.15)}
+@keyframes flipIn{from{transform:rotateY(-32deg);opacity:.35}to{transform:rotateY(0);opacity:1}}
+.anim-flip{animation:flipIn .26s ease-out}
+@keyframes outL{to{opacity:0;transform:translateX(-30px) scale(.96)}}
+@keyframes outR{to{opacity:0;transform:translateX(30px) scale(.96)}}
+@keyframes outN{to{opacity:0;transform:scale(.94)}}
+.anim-out-l{animation:outL .15s ease-in forwards}
+.anim-out-r{animation:outR .15s ease-in forwards}
+.anim-out-n{animation:outN .15s ease-in forwards}
+@keyframes modalIn{from{opacity:0;transform:translateY(16px) scale(.97)}to{opacity:1;transform:translateY(0) scale(1)}}
+.modal.on .modal-card{animation:modalIn .22s ease-out}
+@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.view.on{animation:fadeUp .25s ease-out}
+.item{animation:fadeUp .3s ease-out backwards}
+@media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
 .fab{position:fixed;right:18px;bottom:calc(22px + env(safe-area-inset-bottom));width:58px;height:58px;border-radius:50%;font-size:30px;line-height:1;background:var(--accent);color:#141414;border:none;box-shadow:0 4px 14px rgba(0,0,0,.45);z-index:50;cursor:pointer}
 </style>
 </head>
@@ -82,6 +110,11 @@ form.add button{background:var(--input);color:var(--accent);border:1px solid var
       <option value="">🌙 モダンダーク</option>
       <option value="rpg">🌟 レトロRPG</option>
       <option value="souls">🏰 ダークソウル</option>
+      <option value="persona">🔴 ペルソナ風</option>
+      <option value="zelda">🗡️ ゼルダ風</option>
+      <option value="genshin">✨ 原神風（ライト）</option>
+      <option value="nier">🤖 ニーア風（ライト）</option>
+      <option value="doubutsu">🍃 どうぶつの森風（ライト）</option>
     </select>
   </div>
 </header>
@@ -136,7 +169,7 @@ form.add button{background:var(--input);color:var(--accent);border:1px solid var
     </div>
 
     <form class="add" id="ghForm">
-      <b>☁ GitHub同期</b> <span class="note">同期方式 v3.1 ／ 機能 v5（カード編集・モーダル編集）</span>
+      <b>☁ GitHub同期</b> <span class="note">同期方式 v3.1 ／ 機能 v6（テーマ8種・モーション）</span>
       <input id="ghOwner" placeholder="GitHubユーザー名（owner）">
       <input id="ghRepo" placeholder="リポジトリ名（Private）">
       <input id="ghToken" type="password" placeholder="トークン（Contents: Read and write）">
@@ -246,6 +279,7 @@ function startTimer(){
     else { stopTimer(); $('timer').textContent = '⏳ タイムアップ！'; grade('hard'); }
   }, 1000);
 }
+function cardIn(){ const c = $('card'); c.classList.remove('anim-in'); void c.offsetWidth; c.classList.add('anim-in'); }
 function nextCard(){
   stopTimer(); shown = false;
   const due = dueItems();
@@ -256,7 +290,7 @@ function nextCard(){
       $('badge').textContent = ''; $('word').textContent = '🎉 苦手単語はありません';
       $('reading').textContent = ''; $('meaning').textContent = ''; $('example').textContent = '';
       $('hint').textContent = '';
-      setGrades(false); $('stats').textContent = statsText(); stopTimer(); updateSpeakBtns(); return;
+      setGrades(false); $('stats').textContent = statsText(); stopTimer(); updateSpeakBtns(); cardIn(); return;
     }
     if (totalAll === 0){
       $('badge').textContent = ''; $('word').textContent = '単語がありません';
@@ -296,12 +330,14 @@ function nextCard(){
   $('stats').textContent = statsText();
   updateSpeakBtns();
   autoSpeakListening();
+  cardIn();
 }
 function setGrades(on){ ['btnHard','btnNormal','btnEasy'].forEach(id => $(id).disabled = !on); }
 function toggle(){
   if (!current) return;
   setTimeout(updateSpeakBtns, 0);
   shown = !shown; const it = current.item;
+  if (shown){ const c = $('card'); c.classList.remove('anim-flip'); void c.offsetWidth; c.classList.add('anim-flip'); }
   if (!shown && listenMode){ showListeningFront(); return; }
   if (shown && listenMode && !currentCloze){ $('word').textContent = it.word; $('word').style.fontSize = ''; }
   if (shown && currentCloze){
@@ -339,7 +375,13 @@ function grade(kind){
   if (kind === 'hard'){ it.lapses = (it.lapses || 0) + 1; it.interval = cur <= 1 ? 0 : Math.floor(cur / 2); it.next_review = addDays(it.interval); }
   else if (kind === 'normal'){ const n = cur === 0 ? 1 : cur * 2; it.interval = n; it.next_review = addDays(n); }
   else { const n = cur === 0 ? 3 : cur * 4; it.interval = n; it.next_review = addDays(n); }
-  save(); markDirty(current.deck); nextCard();
+  save(); markDirty(current.deck);
+  setGrades(false);
+  const cardEl = $('card');
+  const outCls = kind === 'hard' ? 'anim-out-l' : kind === 'easy' ? 'anim-out-r' : 'anim-out-n';
+  cardEl.classList.remove('anim-in','anim-flip','anim-out-l','anim-out-r','anim-out-n');
+  cardEl.classList.add(outCls);
+  setTimeout(() => { cardEl.classList.remove(outCls); nextCard(); }, 150);
 }
 $('card').addEventListener('click', toggle);
 $('btnHard').addEventListener('click', () => grade('hard'));
@@ -367,7 +409,8 @@ function renderRetention(){
   $('retention').innerHTML = '<div class="rt">📊 定着度（' + (listDeck === 'en' ? '英語' : '中国語') + '・復習間隔の分布）</div>' + buckets.map((b, i) =>
     '<div class="rr"><div class="rl">' + b[0] + '</div><div class="rb"><div class="rf" style="width:' + Math.round(counts[i] * 100 / max) + '%"></div></div><div class="rc">' + counts[i] + '語</div></div>').join('');
 }
-function renderList(){
+function renderList(anim){
+  const doAnim = anim !== false;
   renderRetention();
   const q = $('search').value.trim().toLowerCase();
   const items = data[listDeck];
@@ -385,6 +428,7 @@ function renderList(){
     if (leechFilterOn && (it.lapses || 0) < LEECH_MIN) return;
     shown++;
     const div = document.createElement('div'); div.className = 'item';
+    if (doAnim) div.style.animationDelay = Math.min(shown, 12) * 25 + 'ms'; else div.style.animation = 'none';
     const sub = [it.reading, it.meaning].filter(Boolean).join('　');
     div.innerHTML = '<b></b><div class="sub"></div><div class="meta"></div>';
     div.querySelector('b').textContent = it.word;
@@ -403,7 +447,7 @@ function renderList(){
   const list = $('list'); list.innerHTML = ''; list.appendChild(frag);
   if (!shown){ list.innerHTML = '<p class="note">該当する単語がありません。</p>'; }
 }
-$('search').addEventListener('input', renderList);
+$('search').addEventListener('input', () => renderList(false));
 $('deckEn').addEventListener('click', () => { listDeck = 'en'; renderList(); });
 $('deckCn').addEventListener('click', () => { listDeck = 'cn'; renderList(); });
 $('leechFilter').addEventListener('click', () => { leechFilterOn = !leechFilterOn; renderList(); });

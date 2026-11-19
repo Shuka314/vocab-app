@@ -180,7 +180,7 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);outline-
     </div>
 
     <form class="add" id="ghForm">
-      <b><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px" aria-hidden="true"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg> GitHub同期</b> <span class="note">同期方式 v3.1 ／ 機能 v13.3（配色おまかせ20個ごと・再生音声の音量を少し下げた）</span>
+      <b><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px" aria-hidden="true"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg> GitHub同期</b> <span class="note">同期方式 v3.1 ／ 機能 v13.4（音源キャッシュを更新して新しい音に差し替わるよう修正）</span>
       <input id="ghOwner" placeholder="GitHubユーザー名（owner）">
       <input id="ghRepo" placeholder="リポジトリ名（Private）">
       <input id="ghToken" type="password" placeholder="トークン（Contents: Read and write）">
@@ -563,6 +563,7 @@ const RAIN_VOL = 0.32;
 const AMB_FILES = { rain: 'rain_b64.txt', fire: 'fire_b64.txt', waves: 'waves_b64.txt', river: 'river_b64.txt', insects: 'insects_b64.txt' };
 let ambSelVal = (() => { try { const v = localStorage.getItem('vocabAmbSel'); if (v) return v; return localStorage.getItem('vocabRain') === '0' ? 'off' : 'rain'; } catch(e){ return 'rain'; } })();
 let ambKind = '', ambLoading = '', ambWantsPlay = false;
+try { const rm = []; for (let i = 0; i < localStorage.length; i++){ const k = localStorage.key(i); if (k && (k === 'vocabRainB64' || k.startsWith('vocabAmbB64_') || k.startsWith('vocabAmbB64v2_'))) rm.push(k); } rm.forEach(k => localStorage.removeItem(k)); } catch(e){}
 let rainAudio2 = null, rainCur = 0, rainCrossing = false, rainCrossTimer = null, rainWatchTimer = null;
 function effAmb(){
   if (ambSelVal !== 'auto') return ambSelVal;
@@ -617,10 +618,10 @@ function ensureAmbSrc(kind){
     if (ambWantsPlay && effAmb() === kind) startAmbAudio();
   };
   let cached = null;
-  try { cached = localStorage.getItem('vocabAmbB64v2_' + kind); if (!cached && kind === 'rain') cached = localStorage.getItem('vocabRainB64'); } catch(e){}
+  try { cached = localStorage.getItem('vocabAmbB64v3_' + kind); } catch(e){}
   if (cached && cached.length > 100000){ use(cached); return; }
-  fetch(AMB_FILES[kind]).then(r => r.text()).then(t => {
-    try { localStorage.setItem('vocabAmbB64v2_' + kind, t); } catch(e){}
+  fetch(AMB_FILES[kind] + '?v=3', { cache: 'no-store' }).then(r => r.text()).then(t => {
+    try { localStorage.setItem('vocabAmbB64v3_' + kind, t); } catch(e){}
     use(t);
   }).catch(() => { ambLoading = ''; });
 }

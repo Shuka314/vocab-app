@@ -173,7 +173,7 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);outline-
     </div>
 
     <form class="add" id="ghForm">
-      <b>☁ GitHub同期</b> <span class="note">同期方式 v3.1 ／ 機能 v7（自動テーマ・雨エフェクト）</span>
+      <b>☁ GitHub同期</b> <span class="note">同期方式 v3.1 ／ 機能 v8（めくり音声・自動テーマ・雨）</span>
       <input id="ghOwner" placeholder="GitHubユーザー名（owner）">
       <input id="ghRepo" placeholder="リポジトリ名（Private）">
       <input id="ghToken" type="password" placeholder="トークン（Contents: Read and write）">
@@ -248,6 +248,7 @@ function addDays(n){ const d = new Date(); d.setDate(d.getDate()+n); return toda
 let mode = 'en';           // en | cn | mix | list
 let listDeck = 'en';
 let current = null;        // {deck, item}
+let revealSpoke = false;   // このカードで初回めくり音声を流したか
 let shown = false;
 let listenMode = false;
 try { listenMode = localStorage.getItem('vocabListen') === '1'; } catch(e){}
@@ -286,7 +287,7 @@ function startTimer(){
 }
 function cardIn(){ const c = $('card'); c.classList.remove('anim-in'); void c.offsetWidth; c.classList.add('anim-in'); }
 function nextCard(){
-  stopTimer(); shown = false;
+  stopTimer(); shown = false; revealSpoke = false;
   const due = dueItems();
   const totalAll = data.en.length + data.cn.length;
   if (!due.length){
@@ -343,6 +344,11 @@ function toggle(){
   setTimeout(updateSpeakBtns, 0);
   shown = !shown; const it = current.item;
   { const c = $('card'); const cls = shown ? 'anim-flip' : 'anim-flip-b'; c.classList.remove('anim-flip','anim-flip-b'); void c.offsetWidth; c.classList.add(cls); }
+  if (shown && !revealSpoke && !listenMode){
+    revealSpoke = true;
+    const t = String(it.word || '');
+    speak(t.includes('~') ? (it.example || t.replace(/~/g, ' ')) : t, current.deck);
+  }
   if (!shown && listenMode){ showListeningFront(); return; }
   if (shown && listenMode && !currentCloze){ $('word').textContent = it.word; $('word').style.fontSize = ''; }
   if (shown && currentCloze){

@@ -40,7 +40,7 @@ main{flex:1;display:flex;flex-direction:column;padding:12px 14px;gap:10px;max-wi
 .grades button{flex:1;padding:16px 4px;border-radius:12px;border:1px solid var(--border);background:var(--card);font-size:16px;font-weight:800}
 .g-hard{color:var(--warning)} .g-normal{color:var(--normal)} .g-easy{color:var(--success)}
 .grades button:disabled{opacity:.35}
-.stats{font-size:13px;color:var(--accent);font-weight:700;padding:0 2px;text-align:center}
+.stats{font-size:13px;color:var(--accent);font-weight:700;padding:0 2px;text-align:center;margin-top:-4px}
 .row{display:flex;gap:8px;flex-wrap:wrap}
 header .row{flex-wrap:nowrap;gap:6px;width:100%}
 header .chk{gap:4px;font-size:13px}
@@ -158,7 +158,7 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);outline-
       <button class="g-easy" id="btnEasy">簡単</button>
     </div>
     <div class="stats" id="stats"></div>
-    <div class="note" id="studyTime" style="text-align:center;margin-top:2px"></div>
+    <div class="note" id="studyTime" style="text-align:center;margin-top:-8px;line-height:1.3"></div>
   </section>
 
   <section id="listView" class="view">
@@ -297,7 +297,7 @@ function statsText(){
   const t = todayStr();
   let due = 0, total = 0;
   decks().forEach(dk => { total += data[dk].length; due += data[dk].filter(it => (it.next_review || t) <= t).length; });
-  return ICONS.flag + ' 本日の要復習: ' + due + '件 ／ 総単語数: ' + total + '件';
+  return '要復習: ' + due + '件 ／ 総単語数: ' + total + '件';
 }
 let timerPaused = false;
 function stopTimer(){ if (timerId){ clearInterval(timerId); timerId = null; } timerPaused = false; $('timer').textContent=''; }
@@ -344,7 +344,7 @@ function fmtDur(sec){
 }
 function renderStudyTime(){
   const el = $('studyTime'); if (!el) return;
-  el.textContent = '今日の学習時間： ' + fmtDur(studyMap[jstDateStr()] || 0) + ' ／ 復習： ' + (reviewCountMap[jstDateStr()] || 0) + '語';
+  el.textContent = '学習時間： ' + fmtDur(studyMap[jstDateStr()] || 0) + ' ／ 復習単語： ' + (reviewCountMap[jstDateStr()] || 0) + '語';
 }
 function studyTick(){
   const now = Date.now();

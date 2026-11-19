@@ -97,6 +97,7 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);outline-
 @keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
 .view.on{animation:fadeUp .25s ease-out}
 .item{animation:fadeUp .3s ease-out backwards}
+#warmFx{position:fixed;inset:0;background:#ff9329;mix-blend-mode:soft-light;opacity:0;pointer-events:none;z-index:200;transition:opacity 2.5s ease}
 #rainCv{position:fixed;top:0;left:0;width:100%;height:210px;z-index:5;pointer-events:none}
 @media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
 .fab{position:fixed;right:18px;bottom:calc(22px + env(safe-area-inset-bottom));width:58px;height:58px;border-radius:50%;font-size:30px;line-height:1;background:var(--accent);color:#141414;border:none;box-shadow:0 4px 14px rgba(0,0,0,.45);z-index:50;cursor:pointer}
@@ -109,7 +110,7 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);outline-
   <div class="row" style="align-items:center">
     <label class="chk"><input type="checkbox" id="timerChk" style="width:20px;height:20px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>30秒</label>
     <label class="chk"><input type="checkbox" id="listenChk" style="width:20px;height:20px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px" aria-hidden="true"><path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/></svg> 聴き取り</label>
-    <label class="chk"><input type="checkbox" id="rainChk" style="width:20px;height:20px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px" aria-hidden="true"><line x1="16" y1="13" x2="16" y2="21"/><line x1="8" y1="13" x2="8" y2="21"/><line x1="12" y1="15" x2="12" y2="23"/><path d="M20 16.58A5 5 0 0 0 18 7h-1.26A8 8 0 1 0 4 15.25"/></svg> 雨</label>
+    <label class="chk"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px" aria-hidden="true"><line x1="16" y1="13" x2="16" y2="21"/><line x1="8" y1="13" x2="8" y2="21"/><line x1="12" y1="15" x2="12" y2="23"/><path d="M20 16.58A5 5 0 0 0 18 7h-1.26A8 8 0 1 0 4 15.25"/></svg> <select id="ambSel" style="font-size:14px;padding:2px 4px;border-radius:6px"><option value="rain">雨</option><option value="fire">焚き火</option><option value="waves">波</option><option value="river">川</option><option value="insects">夜の虫</option><option value="auto">おまかせ</option><option value="off">なし</option></select></label>
     <select id="themeSel">
       <option value="">ダーク</option>
       <option value="rpg">レトロ</option>
@@ -174,7 +175,7 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);outline-
     </div>
 
     <form class="add" id="ghForm">
-      <b><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px" aria-hidden="true"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg> GitHub同期</b> <span class="note">同期方式 v3.1 ／ 機能 v12（雨音クロスフェードループ）</span>
+      <b><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px" aria-hidden="true"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg> GitHub同期</b> <span class="note">同期方式 v3.1 ／ 機能 v13（環境音セレクタ・時間帯オート・夜の暖色）</span>
       <input id="ghOwner" placeholder="GitHubユーザー名（owner）">
       <input id="ghRepo" placeholder="リポジトリ名（Private）">
       <input id="ghToken" type="password" placeholder="トークン（Contents: Read and write）">
@@ -235,6 +236,7 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);outline-
 <button id="fabAdd" class="fab" title="単語を追加">＋</button>
 
 <canvas id="rainCv" style="display:none"></canvas>
+<div id="warmFx"></div>
 <audio id="rainAudio" preload="none" style="display:none"></audio>
 <script defer src="https://cdn.jsdelivr.net/npm/pinyin-pro@3.26.0/dist/index.js"></script>
 <script>
@@ -308,6 +310,10 @@ document.addEventListener('visibilitychange', () => { if (document.hidden) pause
 
 // ===== 学習時間の記録（日本時間の日別・ページがアクティブな間だけ） =====
 const STUDY_KEY = 'vocabStudyTimeV1';
+function jstHour(){
+  try { return parseInt(new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Tokyo', hour: 'numeric', hour12: false }).format(new Date()), 10) % 24; }
+  catch(e){ return new Date().getHours(); }
+}
 function jstDateStr(d){
   try { return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tokyo', year: 'numeric', month: '2-digit', day: '2-digit' }).format(d || new Date()); }
   catch(e){ return todayStr(d); }
@@ -484,7 +490,7 @@ try { const th = localStorage.getItem('vocabTheme'); if (th !== null){ document.
 const rainCv = $('rainCv'), rctx = rainCv.getContext('2d');
 const rainAudio = $('rainAudio');
 let rainOn = true, rainRaf = null, rainW = 0, rainH = 210, drops = [], trails = [], mists = [];
-try { rainOn = localStorage.getItem('vocabRain') !== '0'; } catch(e){}
+rainOn = false;
 if (rainAudio) rainAudio.volume = 0.32;
 function sizeRain(){
   const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
@@ -538,32 +544,23 @@ function rainStep(){
 }
 function startRain(){ sizeRain(); rainCv.style.display = ''; if (rainRaf == null) rainRaf = requestAnimationFrame(rainStep); }
 function stopRain(){ rainCv.style.display = 'none'; if (rainRaf != null){ cancelAnimationFrame(rainRaf); rainRaf = null; } }
-let rainSrcReady = false, rainSrcTried = false;
-function ensureRainSrc(){
-  if (rainSrcTried || !rainAudio) return;
-  rainSrcTried = true;
-  const use = t => {
-    const bin = atob(t.replace(/\s/g, ''));
-    const arr = new Uint8Array(bin.length);
-    for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
-    rainUrl = URL.createObjectURL(new Blob([arr], { type: 'audio/mpeg' }));
-    rainAudio.src = rainUrl;
-    if (rainAudio2) rainAudio2.src = rainUrl;
-    rainSrcReady = true;
-    startRainAudio();
-  };
-  let cached = null;
-  try { cached = localStorage.getItem('vocabRainB64'); } catch(e){}
-  if (cached && cached.length > 100000){ use(cached); return; }
-  fetch('rain_b64.txt').then(r => r.text()).then(t => {
-    try { localStorage.setItem('vocabRainB64', t); } catch(e){}
-    use(t);
-  }).catch(() => {});
-}
+// ===== 環境音（雨・焚き火・波・川・夜の虫／時間帯オート） =====
 const RAIN_VOL = 0.32;
-let rainAudio2 = null, rainUrl = '', rainCur = 0, rainCrossing = false, rainCrossTimer = null, rainWatchTimer = null;
+const AMB_FILES = { rain: 'rain_b64.txt', fire: 'fire_b64.txt', waves: 'waves_b64.txt', river: 'river_b64.txt', insects: 'insects_b64.txt' };
+let ambSelVal = (() => { try { const v = localStorage.getItem('vocabAmbSel'); if (v) return v; return localStorage.getItem('vocabRain') === '0' ? 'off' : 'rain'; } catch(e){ return 'rain'; } })();
+let ambKind = '', ambLoading = '', ambWantsPlay = false;
+let rainAudio2 = null, rainCur = 0, rainCrossing = false, rainCrossTimer = null, rainWatchTimer = null;
+function effAmb(){
+  if (ambSelVal !== 'auto') return ambSelVal;
+  const h = jstHour();
+  if (h >= 5 && h < 9) return 'river';
+  if (h >= 9 && h < 17) return 'waves';
+  if (h >= 17 && h < 21) return 'fire';
+  if (h >= 21 || h < 1) return 'insects';
+  return 'rain';
+}
 function getRainDeck(){
-  if (!rainAudio2){ rainAudio2 = new Audio(); rainAudio2.preload = 'auto'; if (rainUrl) rainAudio2.src = rainUrl; }
+  if (!rainAudio2){ rainAudio2 = new Audio(); rainAudio2.preload = 'auto'; }
   return [rainAudio, rainAudio2];
 }
 function fadeEl(el, target, durMs, done){
@@ -578,10 +575,45 @@ function fadeEl(el, target, durMs, done){
     el.volume = Math.max(0, Math.min(1, from + step * n));
   }, 50);
 }
+function pauseAmbNow(){
+  if (rainWatchTimer){ clearInterval(rainWatchTimer); rainWatchTimer = null; }
+  if (rainCrossTimer){ clearInterval(rainCrossTimer); rainCrossTimer = null; rainCrossing = false; }
+  if (!rainAudio) return;
+  getRainDeck().forEach(el => { if (!el) return; if (el._ft){ clearInterval(el._ft); el._ft = null; } if (!el.paused) el.pause(); });
+}
+function stopAmbAudio(){
+  if (!rainAudio) return;
+  if (rainWatchTimer){ clearInterval(rainWatchTimer); rainWatchTimer = null; }
+  if (rainCrossTimer){ clearInterval(rainCrossTimer); rainCrossTimer = null; rainCrossing = false; }
+  getRainDeck().forEach(el => { if (el && !el.paused) fadeEl(el, 0, 900, () => { el.pause(); }); });
+}
+function ensureAmbSrc(kind){
+  if (ambKind === kind || ambLoading === kind) return;
+  ambLoading = kind;
+  const use = t => {
+    const bin = atob(t.replace(/\s/g, ''));
+    const arr = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+    pauseAmbNow();
+    const url = URL.createObjectURL(new Blob([arr], { type: 'audio/mpeg' }));
+    const deck = getRainDeck();
+    deck[0].src = url; deck[1].src = url;
+    rainCur = 0;
+    ambKind = kind; ambLoading = '';
+    if (ambWantsPlay && effAmb() === kind) startAmbAudio();
+  };
+  let cached = null;
+  try { cached = localStorage.getItem('vocabAmbB64_' + kind); if (!cached && kind === 'rain') cached = localStorage.getItem('vocabRainB64'); } catch(e){}
+  if (cached && cached.length > 100000){ use(cached); return; }
+  fetch(AMB_FILES[kind]).then(r => r.text()).then(t => {
+    try { localStorage.setItem('vocabAmbB64_' + kind, t); } catch(e){}
+    use(t);
+  }).catch(() => { ambLoading = ''; });
+}
 function startRainWatch(){
   if (rainWatchTimer) return;
   rainWatchTimer = setInterval(() => {
-    if (!rainOn || rainCrossing) return;
+    if (rainCrossing) return;
     const deck = getRainDeck(), el = deck[rainCur];
     if (!el || el.paused || !el.duration) return;
     if (el.currentTime > el.duration - 3.5) crossfadeRain();
@@ -608,9 +640,11 @@ function crossfadeRain(){
     }
   }, 100);
 }
-function startRainAudio(){
-  if (!rainOn || !rainAudio) return;
-  if (!rainSrcReady){ ensureRainSrc(); return; }
+function startAmbAudio(){
+  if (!rainAudio) return;
+  const eff = effAmb();
+  if (eff === 'off') return;
+  if (ambKind !== eff){ ensureAmbSrc(eff); return; }
   const deck = getRainDeck(), cur = deck[rainCur], other = deck[1 - rainCur];
   if (rainCrossTimer){ clearInterval(rainCrossTimer); rainCrossTimer = null; rainCrossing = false; }
   if (other && !other.paused) fadeEl(other, 0, 600, () => { other.pause(); });
@@ -621,17 +655,32 @@ function startRainAudio(){
   } else fadeEl(cur, RAIN_VOL, 800);
   startRainWatch();
 }
-function stopRainAudio(){
-  if (!rainAudio) return;
-  if (rainWatchTimer){ clearInterval(rainWatchTimer); rainWatchTimer = null; }
-  if (rainCrossTimer){ clearInterval(rainCrossTimer); rainCrossTimer = null; rainCrossing = false; }
-  getRainDeck().forEach(el => { if (el && !el.paused) fadeEl(el, 0, 1200, () => { el.pause(); }); });
+function updateWarm(){
+  const el = $('warmFx'); if (!el) return;
+  const h = jstHour();
+  el.style.opacity = (h >= 20 || h < 6) ? '0.3' : '0';
 }
-$('rainChk').checked = rainOn;
-if (rainOn) startRain();
-document.addEventListener('pointerdown', startRainAudio);
-$('rainChk').addEventListener('change', e => { rainOn = e.target.checked; try { localStorage.setItem('vocabRain', rainOn ? '1' : '0'); } catch(err){} if (rainOn){ startRain(); startRainAudio(); } else { stopRain(); stopRainAudio(); } });
-document.addEventListener('visibilitychange', () => { if (document.hidden) stopRainAudio(); else startRainAudio(); });
+function applyAmb(fromUser){
+  const eff = effAmb();
+  if (eff === 'rain'){ if (!rainOn){ rainOn = true; startRain(); } }
+  else if (rainOn){ rainOn = false; stopRain(); }
+  if (eff === 'off'){ stopAmbAudio(); return; }
+  if (eff !== ambKind && (fromUser || ambKind !== '')) ensureAmbSrc(eff);
+  else if (fromUser && ambWantsPlay) startAmbAudio();
+}
+$('ambSel').value = ambSelVal;
+applyAmb(false);
+updateWarm();
+document.addEventListener('pointerdown', () => { ambWantsPlay = true; startAmbAudio(); });
+$('ambSel').addEventListener('change', e => {
+  ambSelVal = e.target.value;
+  try { localStorage.setItem('vocabAmbSel', ambSelVal); } catch(err){}
+  ambWantsPlay = ambSelVal !== 'off';
+  if (ambSelVal === 'off') stopAmbAudio();
+  applyAmb(true);
+});
+document.addEventListener('visibilitychange', () => { if (document.hidden) pauseAmbNow(); else if (ambWantsPlay) startAmbAudio(); });
+setInterval(() => { if (ambSelVal === 'auto') applyAmb(false); updateWarm(); }, 60000);
 window.addEventListener('resize', () => { if (rainOn) sizeRain(); });
 
 document.querySelectorAll('.tabs button').forEach(b => b.addEventListener('click', () => {

@@ -1078,7 +1078,11 @@ function clozeParts(word){
   }
   return parts;
 }
-function blankFor(text, deck){ const n = [...String(text)].length; return deck === 'en' ? '_'.repeat(n) : '＿'.repeat(n); }
+function blankFor(text, deck){
+  const t = String(text);
+  if (deck === 'en') return t.split(' ').map(w => '_'.repeat([...w].length)).join(' ');
+  return [...t].map(() => '＿').join(' ');
+}
 function makeCloze(item, deck){
   const ex = item.example || '';
   if (!ex) return null;

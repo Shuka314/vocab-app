@@ -677,8 +677,7 @@ function updateWarm(){
 }
 function applyAmb(fromUser){
   const eff = effAmb();
-  if (eff === 'rain'){ if (!rainOn){ rainOn = true; startRain(); } }
-  else if (rainOn){ rainOn = false; stopRain(); }
+  if (rainOn){ rainOn = false; stopRain(); }
   if (eff === 'off'){ stopAmbAudio(); return; }
   if (eff !== ambKind && (fromUser || ambKind !== '')) ensureAmbSrc(eff);
   else if (fromUser && ambWantsPlay) startAmbAudio();
